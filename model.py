@@ -2,12 +2,16 @@
 
 from typing import Union, List, Iterable, Tuple, Callable, Any
 from multiprocessing import Manager, Process
+# from collections import defaultdict
 from scipy.special import gamma
 import numpy as np
+from functools import partial
 import time
 # import re
 
 from cloudforms import CylinderCloud
+from domain import Domain
+from decor import storage
 import settings
 gpu = settings.gpu
 
@@ -29,10 +33,11 @@ np2dB = 1. / dB2np
 
 TensorLike = Union[np.ndarray, tf.Tensor]
 Number = Union[float, complex]
-Tensor1D, Tensor2D, Tensor3D, Tensor1D_or_3D = TensorLike, TensorLike, TensorLike, TensorLike
+Tensor1D, Tensor2D, Tensor3D, Tensor1D_or_3D = \
+    TensorLike, TensorLike, TensorLike, TensorLike
 
 
-class StandardProfiles:
+class Standard:
     def __init__(self, T0: float = 15. + 273.15, P0: float = 1013, rho0: float = 7.5,
                  H: float = 40, dh: float = 40. / 500,
                  nx: int = None, ny: int = None,
@@ -58,37 +63,37 @@ class StandardProfiles:
             self.__setattr__(name, value)
 
     @property
-    def _altitudes(self) -> np.ndarray:
+    def __altitudes(self) -> np.ndarray:
         if self.near_ground:
-            return np.asarray([0])
-        return np.arange(0, self.H + self.dh / 2., self.dh)
-
-    def altitudes(self) -> Tensor1D:
-        return self.gpu(self._altitudes)
+            return np.asarray([0.])
+        return np.arange(0, self.H + self.dh / 2, self.dh)
 
     @staticmethod
-    def reshape(profile: np.ndarray, sizes: tuple) -> np.ndarray:
+    def __(profile: Union[np.ndarray, List[float], Iterable[float]]) -> Union[float, np.ndarray]:
+        if len(profile) == 1:
+            return profile[0]
+        return np.asarray(profile, dtype=cpu_float)
+
+    @staticmethod
+    def reshape(profile: Union[float, np.ndarray], sizes: tuple) -> Union[float, np.ndarray]:
         nx, ny = sizes
         if nx and ny:
             profile = np.asarray([[profile for _ in range(ny)] for _ in range(nx)], dtype=cpu_float)
         return profile
 
     @staticmethod
-    def gpu(profile: np.ndarray) -> Tensor1D_or_3D:
+    def gpu(profile: Union[float, np.ndarray]) -> Union[float, Tensor1D_or_3D]:
         if gpu:
             return tf.convert_to_tensor(profile, dtype=gpu_float)
         return profile
 
-    @staticmethod
-    def __(profile: list) -> np.ndarray:
-        if len(profile) == 1:
-            profile = profile[0]
-        return np.asarray(profile, dtype=cpu_float)
+    def altitudes(self) -> Union[float, Tensor1D]:
+        return self.gpu(self.__(self.__altitudes))
 
-    def zeros(self) -> Tensor1D_or_3D:
-        return self.gpu(self.reshape(np.zeros(len(self._altitudes), dtype=cpu_float), (self.nx, self.ny)))
+    def zeros(self) -> Union[float, Tensor1D_or_3D]:
+        return self.gpu(self.reshape(self.__(np.zeros(len(self.__altitudes), dtype=cpu_float)), (self.nx, self.ny)))
 
-    def T(self, celsius=True) -> Tensor1D_or_3D:
+    def temperature(self, celsius=True) -> Union[float, Tensor1D_or_3D]:
         """
         :param celsius: град. Цельс.?
         :return: Стандартный высотный профиль термодинамической температуры
@@ -97,7 +102,7 @@ class StandardProfiles:
         profile = []
         T11 = self.T0 - 6.5 * 11
         T32, T47 = 0., 0.
-        for h in self._altitudes:
+        for h in self.__altitudes:
             if h <= 11:
                 profile.append(self.T0 - 6.5 * h)
             elif 11 < h <= 20:
@@ -115,52 +120,34 @@ class StandardProfiles:
             profile -= 273.15
         return self.gpu(self.reshape(profile, (self.nx, self.ny)))
 
-    def P(self, HP: float = 7.7) -> Tensor1D_or_3D:
+    def T(self, celsius=True) -> Union[float, Tensor1D_or_3D]:
+        return self.temperature(celsius)
+
+    def pressure(self, HP: float = 7.7) -> Union[float, Tensor1D_or_3D]:
         """
         :return: Стандартный высотный профиль атмосферного давления (гПа).
         """
-        profile = self.__([self.P0 * np.exp(-h / HP) for h in self._altitudes])
+        profile = self.__([self.P0 * np.exp(-h / HP) for h in self.__altitudes])
         return self.gpu(self.reshape(profile, (self.nx, self.ny)))
 
-    def rho(self, Hrho: float = 2.1) -> Tensor1D_or_3D:
+    def P(self, HP: float = 7.7) -> Union[float, Tensor1D_or_3D]:
+        return self.pressure(HP)
+
+    def absolute_humidity(self, Hrho: float = 2.1) -> Union[float, Tensor1D_or_3D]:
         """
         :return: Стандартный высотный профиль абсолютной влажности (г/м^3).
         """
-        profile = self.__([self.rho0 * np.exp(-h / Hrho) for h in self._altitudes])
+        profile = self.__([self.rho0 * np.exp(-h / Hrho) for h in self.__altitudes])
         return self.gpu(self.reshape(profile, (self.nx, self.ny)))
 
+    def rho(self, Hrho: float = 2.1) -> Union[float, Tensor1D_or_3D]:
+        return self.absolute_humidity(Hrho)
 
-class Domain:
-    def __init__(self, kilometers, nodes):
-        self.PX, self.PY, self.PZ = kilometers
-        if nodes is None:
-            nodes = (1, 1, 500)
-        self.Nx, self.Ny, self.Nz = nodes
-        if self.Nx is None:
-            self.Nx = 1
-        if self.Ny is None:
-            self.Ny = 1
-        if self.Nz is None:
-            self.Nz = 500
-        self.cl_bottom = 1.5
 
-    def x(self, i: int) -> float:
-        return i * self.PX / (self.Nx - 1)
-
-    def y(self, j: int) -> float:
-        return j * self.PY / (self.Ny - 1)
-
-    def z(self, k: int) -> float:
-        return k * self.PZ / (self.Nz - 1)
-
-    def i(self, x: float) -> int:
-        return int(x / self.PX * (self.Nx - 1))
-
-    def j(self, y: float) -> int:
-        return int(y / self.PY * (self.Ny - 1))
-
-    def k(self, z: float) -> int:
-        return int(z / self.PZ * (self.Nz - 1))
+class Planck(Domain):
+    def __init__(self, kilometers: Tuple[float, float, float] = None,
+                 nodes: Tuple[Union[float, None], Union[float, None], float] = None):
+        super().__init__(kilometers, nodes)
 
     def create_height_map(self, Dm: float, K: float,
                           alpha: float, beta: float, eta: float, seed: int = 0,
@@ -258,9 +245,178 @@ class Domain:
 
 
 class Model:
+    def __init__(self, T_std: Tensor1D = None, P_std: Tensor1D = None, rho_std: Tensor1D = None,
+                 altitudes: Tensor1D = None, dh: float = None):
 
-    class compat:
+        if altitudes is None and dh is None:
+            raise ValueError('пожалуйста, задайте altitudes, либо dh')
+        if altitudes is None:
+            self.dh = dh
+        else:
+            dh = [altitudes[0]]
+            for i in range(1, len(altitudes)):
+                dh.append(altitudes[i] - altitudes[i - 1])
+            if gpu:
+                self.dh = tf.convert_to_tensor(dh, dtype=gpu_float)
+            else:
+                self.dh = np.asarray(dh, dtype=cpu_float)
+        sp = Standard()
+        if T_std is None:
+            self.T_std = sp.T(celsius=True)
+        else:
+            self.T_std = T_std
+        if P_std is None:
+            self.P_std = sp.P()
+        else:
+            self.P_std = P_std
+        if rho_std is None:
+            self.rho_std = sp.rho()
+        else:
+            self.rho_std = rho_std
+        assert Model._compat.are_numpy_arrays(self.T_std, self.P_std, self.rho_std) or \
+            Model._compat.are_tensors(self.T_std, self.P_std, self.rho_std), 'типы должны совпадать'
 
+        self._T, self._P, self._rho = self.T_std, self.P_std, self.rho_std
+        self._w, self._t_cloud = 0., -2.
+        self._T_ocean, self._Sw_ocean = 15., 0.
+        self._TK = 0.
+        # self._storage = defaultdict(Any)
+        self._storage = {}
+
+    def refresh(self, _what: Union[str, List[str], Iterable[str]] = None):
+        if _what is None:
+            self._storage.clear()
+        for freq, name in self._storage.keys():
+            if name in _what:
+                del self._storage[(freq, name)]
+
+    @property
+    def T(self):
+        return self._T
+
+    @property
+    def P(self):
+        return self._P
+
+    @property
+    def rho(self):
+        return self._rho
+
+    @property
+    def w(self):
+        return self._w
+
+    @property
+    def t_cloud(self):
+        return self._t_cloud
+
+    @property
+    def Tsurface_ocean(self):
+        return self._T_ocean
+
+    @property
+    def Salinity_ocean(self):
+        return self._Sw_ocean
+
+    @property
+    def T_cosmic(self):
+        return self._TK
+
+    @T.setter
+    def T(self, val: Union[float, Tensor1D_or_3D]):
+        self._T = val
+        affected = [self.gamma_oxygen.__name__, self.gamma_water_vapor.__name__, self.gamma_summary.__name__,
+                    self.tau_oxygen.__name__, self.tau_water_vapor.__name__, self.tau_summary.__name__,
+                    self.brightness_temperature_downward.__name__,
+                    self.brightness_temperature_upward.__name__,
+                    self.brightness_temperature_satellite.__name__]
+        self.refresh(affected)
+
+    @P.setter
+    def P(self, val: Union[float, Tensor1D_or_3D]):
+        self._P = val
+        affected = [self.gamma_oxygen.__name__, self.gamma_water_vapor.__name__, self.gamma_summary.__name__,
+                    self.tau_oxygen.__name__, self.tau_water_vapor.__name__, self.tau_summary.__name__,
+                    self.brightness_temperature_downward.__name__,
+                    self.brightness_temperature_upward.__name__,
+                    self.brightness_temperature_satellite.__name__]
+        self.refresh(affected)
+
+    @rho.setter
+    def rho(self, val: Union[float, Tensor1D_or_3D]):
+        self._rho = val
+        affected = [self.gamma_oxygen.__name__, self.gamma_water_vapor.__name__, self.gamma_summary.__name__,
+                    self.tau_oxygen.__name__, self.tau_water_vapor.__name__, self.tau_summary.__name__,
+                    self.brightness_temperature_downward.__name__,
+                    self.brightness_temperature_upward.__name__,
+                    self.brightness_temperature_satellite.__name__]
+        self.refresh(affected)
+
+    @w.setter
+    def w(self, val: Union[float, Tensor3D]):
+        self._w = val
+        affected = [self.gamma_liquid_water.__name__, self.tau_liquid_water.__name__,
+                    self.gamma_summary.__name__, self.tau_summary.__name__,
+                    self.brightness_temperature_downward.__name__,
+                    self.brightness_temperature_upward.__name__,
+                    self.brightness_temperature_satellite.__name__]
+        self.refresh(affected)
+
+    @t_cloud.setter
+    def t_cloud(self, val: float):
+        self._t_cloud = val
+        affected = [self.kw.__name__,
+                    self.gamma_liquid_water.__name__, self.tau_liquid_water.__name__,
+                    self.gamma_summary.__name__, self.tau_summary.__name__,
+                    self.brightness_temperature_downward.__name__,
+                    self.brightness_temperature_upward.__name__,
+                    self.brightness_temperature_satellite.__name__]
+        self.refresh(affected)
+
+    @Tsurface_ocean.setter
+    def Tsurface_ocean(self, val: Union[float, Tensor2D]):
+        self._T_ocean = val
+        affected = [self.smooth_water_reflectance.__name__,
+                    self.brightness_temperature_satellite.__name__]
+        self.refresh(affected)
+
+    @Salinity_ocean.setter
+    def Salinity_ocean(self, val: Union[float, Tensor2D]):
+        self._Sw_ocean = val
+        affected = [self.smooth_water_reflectance.__name__,
+                    self.brightness_temperature_satellite.__name__]
+        self.refresh(affected)
+
+    @T_cosmic.setter
+    def T_cosmic(self, val: Union[float, Tensor2D]):
+        self._TK = val
+        affected = [self.brightness_temperature_downward.__name__,
+                    self.T_avg_downward.__name__,
+                    self.brightness_temperature_satellite.__name__]
+        self.refresh(affected)
+
+    def set(self, T: Union[float, Tensor1D_or_3D] = None, P: Union[float, Tensor1D_or_3D] = None,
+            rho: Union[float, Tensor1D_or_3D] = None, w: Union[float, Tensor3D] = None,
+            Tsurface_ocean: Union[float, Tensor2D] = None, Salinity_ocean: Union[float, Tensor2D] = None,
+            t_cloud: float = None, T_cosmic: float = None):
+        if T is not None:
+            self.T = T
+        if P is not None:
+            self.P = P
+        if rho is not None:
+            self.rho = rho
+        if w is not None:
+            self.w = w
+        if Tsurface_ocean is not None:
+            self.Tsurface_ocean = Tsurface_ocean
+        if Salinity_ocean is not None:
+            self.Salinity_ocean = Salinity_ocean
+        if t_cloud is not None:
+            self.t_cloud = t_cloud
+        if T_cosmic is not None:
+            self.T_cosmic = T_cosmic
+
+    class _compat:
         @staticmethod
         def rank(a: TensorLike) -> int:
             if isinstance(a, cpu_types):
@@ -287,42 +443,72 @@ class Model:
 
         @staticmethod
         def last_index(a: TensorLike) -> int:
-            return Model.compat.len(a) - 1
+            return Model._compat.len(a) - 1
 
         @staticmethod
-        def integrate(a: Tensor1D_or_3D,
-                      dh: float, method='trapz') -> Union[Number, Tensor2D]:
-            return Model.compat.integrate_bounds(a, 0, Model.compat.last_index(a), dh, method)
+        def _trapz(a: Tensor1D_or_3D, lower: int, upper: int,
+                   dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
+            if isinstance(dh, float):
+                return Model._compat.sum(a[lower+1:upper], axis=0) * dh + (a[lower] + a[upper]) / 2. * dh
+            return Model._compat.sum(a[lower+1:upper] * dh[lower+1:upper], axis=0) + \
+                (a[lower] * dh[lower] + a[upper] * dh[upper]) / 2.
+
+        @staticmethod
+        def _simpson(a: Tensor1D_or_3D, lower: int, upper: int,
+                     dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
+            if isinstance(dh, float):
+                return (a[lower] + a[upper] + 4 * Model._compat.sum(a[lower+1:upper:2], axis=0) +
+                        2 * Model._compat.sum(a[lower+2:upper:2], axis=0)) * dh / 3.
+            return (a[lower] * dh[lower] + a[upper] * dh[upper] +
+                    4 * Model._compat.sum(a[lower+1:upper:2] * dh[lower+1:upper:2], axis=0) +
+                    2 * Model._compat.sum(a[lower+2:upper:2] * dh[lower+2:upper:2], axis=0)) / 3.
+
+        @staticmethod
+        def _boole(a: Tensor1D_or_3D, lower: int, upper: int,
+                   dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
+            if isinstance(dh, float):
+                return (14 * (a[lower] + a[upper]) + 64 * Model._compat.sum(a[lower + 1:upper:2], axis=0) +
+                    24 * Model._compat.sum(a[lower + 2:upper:4], axis=0) +
+                    28 * Model._compat.sum(a[lower + 4:upper:4], axis=0)) * dh / 45.
+            return (14 * (a[lower] * dh[lower] + a[upper] * dh[upper]) +
+                    64 * Model._compat.sum(a[lower+1:upper:2] * dh[lower+1:upper:2], axis=0) +
+                    24 * Model._compat.sum(a[lower+2:upper:4] * dh[lower+2:upper:4], axis=0) +
+                    28 * Model._compat.sum(a[lower+4:upper:4] * dh[lower+4:upper:4], axis=0)) / 45.
 
         @staticmethod
         def integrate_bounds(a: Tensor1D_or_3D, lower: int, upper: int,
-                             dh: float, method='trapz') -> Union[Number, Tensor2D]:
+                             dh: Union[float, Tensor1D], method='trapz') -> Union[Number, Tensor2D]:
             if method not in ['trapz', 'simpson', 'boole']:
                 raise ValueError('выберите один из доступных методов: \'trapz\', \'simpson\', \'boole\'')
-            rank = Model.compat.rank(a)
+            rank = Model._compat.rank(a)
             if rank not in [1, 3]:
                 raise RuntimeError('неверная размерность')
             if rank == 3:
-                a = Model.compat.transpose(a, [2, 0, 1])
+                a = Model._compat.transpose(a, [2, 0, 1])
             if method == 'trapz':
-                a = Model.compat.sum(a[lower+1:upper], axis=0) * dh + (a[lower] + a[upper]) / 2. * dh
+                a = Model._compat._trapz(a, lower, upper, dh)
             if method == 'simpson':
-                a = (a[lower] + a[upper] +
-                     4 * Model.compat.sum(a[lower+1:upper:2], axis=0) +
-                     2 * Model.compat.sum(a[lower+2:upper:2], axis=0)) * dh / 3.
+                a = Model._compat._simpson(a, lower, upper, dh)
             if method == 'boole':
-                a = (14 * (a[lower] + a[upper]) +
-                     64 * Model.compat.sum(a[lower+1:upper:2], axis=0) +
-                     24 * Model.compat.sum(a[lower+2:upper:4], axis=0) +
-                     28 * Model.compat.sum(a[lower+4:upper:4], axis=0)) * dh / 45.
+                a = Model._compat._boole(a, lower, upper, dh)
             return a
 
         @staticmethod
+        def integrate(a: Tensor1D_or_3D,
+                      dh: Union[float, Tensor1D], method='trapz') -> Union[Number, Tensor2D]:
+            return Model._compat.integrate_bounds(a, 0, Model._compat.last_index(a), dh, method)
+
+        @staticmethod
         def integrate_callable(f: Callable, lower: int, upper: int,
-                               dh: float) -> Union[Number, TensorLike]:
-            a = dh * (f(lower) + f(upper)) / 2.
+                               dh: Union[float, Tensor1D]) -> Union[Number, TensorLike]:
+            if isinstance(dh, float):
+                a = dh * (f(lower) + f(upper)) / 2.
+                for k in range(lower + 1, upper):
+                    a += dh * f(k)
+                return a
+            a = (dh[lower] * f(lower) + dh[upper] * f(upper)) / 2.
             for k in range(lower + 1, upper):
-                a += dh * f(k)
+                a += dh[k] * f(k)
             return a
 
         @staticmethod
@@ -387,15 +573,14 @@ class Model:
 
         @staticmethod
         def at(a: TensorLike, index: int) -> Union[Number, TensorLike]:
-            rank = Model.compat.rank(a)
+            rank = Model._compat.rank(a)
             if rank not in [1, 3]:
                 raise RuntimeError('неверная размерность')
             if rank == 3:
                 return a[:, :, index]
             return a[index]
 
-    class multi:
-
+    class _multi:
         @staticmethod
         def do(processes: list, n_workers: int) -> None:
             for i in range(0, len(processes), n_workers):
@@ -420,7 +605,7 @@ class Model:
                     _integrals.append((_i, func(_freq, *args))),
                                 args=(integrals, i, f,))
                     processes.append(p)
-                Model.multi.do(processes, n_workers)
+                Model._multi.do(processes, n_workers)
                 integrals = list(integrals)
             return np.asarray([integral for _, integral in
                                sorted(integrals, key=lambda item: item[0])], dtype=object)
@@ -524,30 +709,6 @@ class Model:
             gamma = Model.p676.gamma_water_vapor(frequency, T_near_ground, P_near_ground, rho_near_ground)
             return gamma * Model.p676.H2(frequency, rainQ=rainQ) / np.cos(theta) * dB2np
 
-    class integral:
-        @staticmethod
-        def tau_oxygen(frequency: float,
-                       T: Tensor1D_or_3D,
-                       P: Tensor1D_or_3D,
-                       dh: float) -> Union[float, Tensor1D_or_3D]:
-            """
-            :return: полное поглощение в кислороде (путем интегрирования). В неперах.
-            """
-            gamma = Model.p676.gamma_oxygen(frequency, T, P)
-            return dB2np * Model.compat.integrate(gamma, dh)
-
-        @staticmethod
-        def tau_water_vapor(frequency: float,
-                            T: Tensor1D_or_3D,
-                            P: Tensor1D_or_3D,
-                            rho: Tensor1D_or_3D,
-                            dh: float) -> Union[float, Tensor1D_or_3D]:
-            """
-            :return: полное поглощение в водяном паре (путем интегрирования). В неперах.
-            """
-            gamma = Model.p676.gamma_water_vapor(frequency, T, P, rho)
-            return dB2np * Model.compat.integrate(gamma, dh)
-
     class dielectric:
         @staticmethod
         def epsilon(T: Union[float, Tensor2D],
@@ -555,7 +716,7 @@ class Model:
             epsO_nosalt = 5.5
             epsS_nosalt = 88.2 - 0.40885 * T + 0.00081 * T * T
             lambdaS_nosalt = 1.8735116 - 0.027296 * T + 0.000136 * T * T + \
-                1.662 * Model.compat.exp(-0.0634 * T)
+                1.662 * Model._compat.exp(-0.0634 * T)
             epsO = epsO_nosalt
             epsS = epsS_nosalt - 17.2 * Sw / 60
             lambdaS = lambdaS_nosalt - 0.206 * Sw / 60
@@ -573,14 +734,15 @@ class Model:
             eps2 = eps2 + 60 * sigma * lamda
             return eps1 - 1j * eps2
 
-    class wf:
+    class weight_func:
         @staticmethod
         def krho(frequency: float,
                  T_standard: Tensor1D,
                  P_standard: Tensor1D,
-                 rho_standard: Tensor1D, dh: float) -> float:
-            return Model.integral.tau_water_vapor(frequency, T_standard, P_standard, rho_standard, dh) / \
-                   (Model.compat.integrate(rho_standard, dh) / 10.)
+                 rho_standard: Tensor1D, dh: Union[float, Tensor1D]) -> float:
+            gamma = Model.p676.gamma_water_vapor(frequency, T_standard, P_standard, rho_standard)
+            tau_water_vapor = dB2np * Model._compat.integrate(gamma, dh)
+            return tau_water_vapor / (Model._compat.integrate(rho_standard, dh) / 10.)
 
         @staticmethod
         def kw(frequency: float, t_cloud: float) -> float:
@@ -596,6 +758,14 @@ class Model:
             y = lambdaS / lamda
             return 3 * 0.6 * np.pi / lamda * (epsS - epsO) * y / (
                     (epsS + 2) * (epsS + 2) + (epsO + 2) * (epsO + 2) * y * y)
+
+    @storage
+    def krho(self, frequency: float) -> float:
+        return Model.weight_func.krho(frequency, self.T_std, self.P_std, self.rho_std, self.dh)
+
+    @storage
+    def kw(self, frequency: float) -> float:
+        return Model.weight_func.kw(frequency, self.t_cloud)
 
     class attenuation:
         @staticmethod
@@ -613,190 +783,319 @@ class Model:
         def gamma_liquid_water(frequency: float, t_cloud: float,
                                w: Union[float, Tensor3D]) -> Union[float, Tensor3D]:
             if isinstance(w, (float, np.ndarray)):
-                return np2dB * Model.wf.kw(frequency, t_cloud) * w
-            return Model.compat.to_tensor(np2dB * Model.wf.kw(frequency, t_cloud)) * w
+                return np2dB * Model.weight_func.kw(frequency, t_cloud) * w
+            return Model._compat.to_tensor(np2dB * Model.weight_func.kw(frequency, t_cloud)) * w
 
         @staticmethod
         def gamma_summary(frequency: float,
                           T: Union[float, Tensor1D_or_3D], P: Union[float, Tensor1D_or_3D],
                           rho: Union[float, Tensor1D_or_3D], w: Union[float, Tensor3D] = None,
-                          t_cloud: float = None) -> Union[float, Tensor3D]:
+                          t_cloud: float = None, nepers=False) -> Union[float, Tensor3D]:
+            k = 1.
+            if nepers:
+                k = dB2np
             if w is None or t_cloud is None:
-                return dB2np * (Model.attenuation.gamma_oxygen(frequency, T, P) +
-                                Model.attenuation.gamma_water_vapor(frequency, T, P, rho))
-            return dB2np * (Model.attenuation.gamma_oxygen(frequency, T, P) +
-                            Model.attenuation.gamma_water_vapor(frequency, T, P, rho) +
-                            Model.attenuation.gamma_liquid_water(frequency, t_cloud, w))
+                return k * (Model.attenuation.gamma_oxygen(frequency, T, P) +
+                            Model.attenuation.gamma_water_vapor(frequency, T, P, rho))
+            return k * (Model.attenuation.gamma_oxygen(frequency, T, P) +
+                        Model.attenuation.gamma_water_vapor(frequency, T, P, rho) +
+                        Model.attenuation.gamma_liquid_water(frequency, t_cloud, w))
+
+    @storage
+    def gamma_oxygen(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+        return Model.attenuation.gamma_oxygen(frequency, self.T, self.P)
+
+    @storage
+    def gamma_water_vapor(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+        return Model.attenuation.gamma_water_vapor(frequency, self.T, self.P, self.rho)
+
+    @storage
+    def gamma_liquid_water(self, frequency: float) -> Union[float, Tensor3D]:
+        return Model.attenuation.gamma_liquid_water(frequency, self.t_cloud, self.w)
+
+    @storage
+    def gamma_summary(self, frequency: float) -> Union[float, Tensor3D]:    # в децибелах
+        return Model.attenuation.gamma_summary(frequency, self.T, self.P, self.rho, self.w, self.t_cloud)
+
+    class opacity:
+        @staticmethod
+        def tau_oxygen(frequency: float,
+                       T: Tensor1D_or_3D,
+                       P: Tensor1D_or_3D,
+                       dh: Union[float, Tensor1D]) -> Union[float, Tensor2D]:
+            """
+            :return: полное поглощение в кислороде (путем интегрирования). В неперах.
+            """
+            gamma = Model.attenuation.gamma_oxygen(frequency, T, P)
+            return dB2np * Model._compat.integrate(gamma, dh)
+
+        @staticmethod
+        def tau_water_vapor(frequency: float,
+                            T: Tensor1D_or_3D,
+                            P: Tensor1D_or_3D,
+                            rho: Tensor1D_or_3D,
+                            dh: Union[float, Tensor1D]) -> Union[float, Tensor2D]:
+            """
+            :return: полное поглощение в водяном паре (путем интегрирования). В неперах.
+            """
+            gamma = Model.attenuation.gamma_water_vapor(frequency, T, P, rho)
+            return dB2np * Model._compat.integrate(gamma, dh)
+
+        @staticmethod
+        def tau_liquid_water(frequency: float, t_cloud: float,
+                             w: Union[float, Tensor3D], dh: Union[float, Tensor1D]) -> Union[float, Tensor2D]:
+            gamma = Model.attenuation.gamma_liquid_water(frequency, t_cloud, w)
+            return dB2np * Model._compat.integrate(gamma, dh)
+
+    @storage
+    def tau_oxygen(self, frequency: float) -> Union[float, Tensor2D]:
+        return Model.opacity.tau_oxygen(frequency, self.T, self.P, self.dh)
+
+    @storage
+    def tau_water_vapor(self, frequency: float) -> Union[float, Tensor2D]:
+        return Model.opacity.tau_water_vapor(frequency, self.T, self.P, self.rho, self.dh)
+
+    @storage
+    def tau_liquid_water(self, frequency: float) -> Union[float, Tensor2D]:
+        return Model.opacity.tau_liquid_water(frequency, self.t_cloud, self.w, self.dh)
+
+    @storage
+    def tau_summary(self, frequency: float) -> Union[float, Tensor2D]:
+        return self.tau_oxygen(frequency) + self.tau_water_vapor(frequency) + self.tau_liquid_water(frequency)
 
     class reflection:
-        @staticmethod
-        def M_horizontal(frequency: float, psi: float, T: Union[float, Tensor2D],
-                         Sw: Union[float, Tensor2D] = 0.) -> Union[Number, Tensor2D]:
-            epsilon = Model.dielectric.epsilon_complex(frequency, T, Sw)
-            cos = Model.compat.sqrt(epsilon - np.cos(psi) * np.cos(psi))
-            return (np.sin(psi) - cos) / (np.sin(psi) + cos)
+        class smooth_water:
+            @staticmethod
+            def M_horizontal(frequency: float, psi: float, T: Union[float, Tensor2D],
+                             Sw: Union[float, Tensor2D] = 0.) -> Union[Number, Tensor2D]:
+                epsilon = Model.dielectric.epsilon_complex(frequency, T, Sw)
+                cos = Model._compat.sqrt(epsilon - np.cos(psi) * np.cos(psi))
+                return (np.sin(psi) - cos) / (np.sin(psi) + cos)
 
-        @staticmethod
-        def M_vertical(frequency: float, psi: float, T: Union[float, Tensor2D],
-                       Sw: Union[float, Tensor2D] = 0.) -> Union[Number, Tensor2D]:
-            epsilon = Model.dielectric.epsilon_complex(frequency, T, Sw)
-            cos = Model.compat.sqrt(epsilon - np.cos(psi) * np.cos(psi))
-            return (epsilon * np.sin(psi) - cos) / (epsilon * np.sin(psi) + cos)
+            @staticmethod
+            def M_vertical(frequency: float, psi: float, T: Union[float, Tensor2D],
+                           Sw: Union[float, Tensor2D] = 0.) -> Union[Number, Tensor2D]:
+                epsilon = Model.dielectric.epsilon_complex(frequency, T, Sw)
+                cos = Model._compat.sqrt(epsilon - np.cos(psi) * np.cos(psi))
+                return (epsilon * np.sin(psi) - cos) / (epsilon * np.sin(psi) + cos)
 
-        @staticmethod
-        def R_horizontal(frequency: float, theta: float, T: Union[float, Tensor2D],
-                         Sw: Union[float, Tensor2D] = 0.) -> Union[float, Tensor2D]:
-            M_h = Model.reflection.M_horizontal(frequency, np.pi / 2. - theta, T, Sw)
-            val = Model.compat.abs(M_h)
-            return val * val
+            @staticmethod
+            def R_horizontal(frequency: float, theta: float, T: Union[float, Tensor2D],
+                             Sw: Union[float, Tensor2D] = 0.) -> Union[float, Tensor2D]:
+                M_h = Model.reflection.smooth_water.M_horizontal(frequency, np.pi / 2. - theta, T, Sw)
+                val = Model._compat.abs(M_h)
+                return val * val
 
-        @staticmethod
-        def R_vertical(frequency: float, theta: float, T: Union[float, Tensor2D],
-                       Sw: Union[float, Tensor2D] = 0.) -> Union[float, Tensor2D]:
-            M_v = Model.reflection.M_vertical(frequency, np.pi / 2. - theta, T, Sw)
-            val = Model.compat.abs(M_v)
-            return val * val
+            @staticmethod
+            def R_vertical(frequency: float, theta: float, T: Union[float, Tensor2D],
+                           Sw: Union[float, Tensor2D] = 0.) -> Union[float, Tensor2D]:
+                M_v = Model.reflection.smooth_water.M_vertical(frequency, np.pi / 2. - theta, T, Sw)
+                val = Model._compat.abs(M_v)
+                return val * val
 
-        @staticmethod
-        def R(frequency: float, T: Union[float, Tensor2D],
-              Sw: Union[float, Tensor2D] = 0.) -> Union[float, Tensor2D]:
-            epsilon = Model.dielectric.epsilon_complex(frequency, T, Sw)
-            val = Model.compat.abs((Model.compat.sqrt(epsilon) - 1) / (Model.compat.sqrt(epsilon) + 1))
-            return val * val
+            @staticmethod
+            def R(frequency: float, T: Union[float, Tensor2D],
+                  Sw: Union[float, Tensor2D] = 0.) -> Union[float, Tensor2D]:
+                epsilon = Model.dielectric.epsilon_complex(frequency, T, Sw)
+                val = Model._compat.abs((Model._compat.sqrt(epsilon) - 1) / (Model._compat.sqrt(epsilon) + 1))
+                return val * val
+
+    @storage
+    def smooth_water_reflectance(self, frequency: float) -> Union[float, Tensor2D]:
+        return Model.reflection.smooth_water.R(frequency, self.Tsurface_ocean, self.Salinity_ocean)
 
     class Downward:
         @staticmethod
         def brightness_temperature(frequency: float,
                                    T: Tensor1D_or_3D, P: Tensor1D_or_3D,
                                    rho: Tensor1D_or_3D, w: Tensor3D,
-                                   t_cloud: float, dh: float, TK: float = 0.) -> Union[float, Tensor2D]:
-            g = Model.attenuation.gamma_summary(frequency, T, P, rho, w, t_cloud)
-            f = lambda h: (Model.compat.at(T, h) + 273.15) * Model.compat.at(g, h) * \
-                Model.compat.exp(-Model.compat.integrate_bounds(g, 0, h, dh))
-            inf = Model.compat.last_index(g)
-            return Model.compat.integrate_callable(f, 0, inf, dh) + \
-                TK * Model.compat.exp(-Model.compat.integrate(g, dh))
+                                   t_cloud: float,
+                                   dh: Union[float, Tensor1D],
+                                   TK: Union[float, Tensor2D] = 0.) -> Union[float, Tensor2D]:
+            g = Model.attenuation.gamma_summary(frequency, T, P, rho, w, t_cloud, nepers=True)
+            f = lambda h: (Model._compat.at(T, h) + 273.15) * Model._compat.at(g, h) * \
+                Model._compat.exp(-Model._compat.integrate_bounds(g, 0, h, dh))
+            inf = Model._compat.last_index(g)
+            return Model._compat.integrate_callable(f, 0, inf, dh) + \
+                TK * Model._compat.exp(-Model._compat.integrate(g, dh))
+
+        @staticmethod
+        def brightness_temperatures(
+                frequencies: Union[np.ndarray, List[float], Iterable[float]],
+                T: Tensor1D_or_3D, P: Tensor1D_or_3D,
+                rho: Tensor1D_or_3D, w: Tensor3D,
+                t_cloud: float, dh: Union[float, Tensor1D], TK: Union[float, Tensor2D] = 0.,
+                n_workers: int = None) -> np.ndarray:
+            if not gpu:
+                return Model._multi.parallel(frequencies,
+                                             func=Model.Downward.brightness_temperature,
+                                             args=(T, P, rho, w, t_cloud, dh, TK,),
+                                             n_workers=n_workers)
+            return np.asarray([Model.Downward.brightness_temperature(f, T, P, rho, w, t_cloud, dh, TK)
+                               for f in frequencies], dtype=object)
 
         @staticmethod
         def T_avg(frequency: float,
                   T_standard: Tensor1D, P_standard: Tensor1D, rho_standard: Tensor1D,
-                  dh: float, TK: float = 0.) -> Union[float, TensorLike]:
-            g = Model.attenuation.gamma_summary(frequency, T_standard, P_standard, rho_standard)
-            f = lambda h: (Model.compat.at(T_standard, h) + 273.15) * Model.compat.at(g, h) * \
-                Model.compat.exp(-Model.compat.integrate_bounds(g, 0, h, dh))
-            inf = Model.compat.last_index(g)
-            TauExp = Model.compat.exp(-Model.compat.integrate(g, dh))
-            Tb_down = Model.compat.integrate_callable(f, 0, inf, dh) + TK * TauExp
+                  dh: Union[float, Tensor1D], TK: Union[float, Tensor2D] = 0.) -> Union[float, TensorLike]:
+            g = Model.attenuation.gamma_summary(frequency, T_standard, P_standard, rho_standard, nepers=True)
+            f = lambda h: (Model._compat.at(T_standard, h) + 273.15) * Model._compat.at(g, h) * \
+                Model._compat.exp(-Model._compat.integrate_bounds(g, 0, h, dh))
+            inf = Model._compat.last_index(g)
+            TauExp = Model._compat.exp(-Model._compat.integrate(g, dh))
+            Tb_down = Model._compat.integrate_callable(f, 0, inf, dh) + TK * TauExp
             return Tb_down / (1. - TauExp)
 
-        class multifreq:
-            @staticmethod
-            def brightness_temperature(
-                    frequencies: Union[np.ndarray, List[float], Iterable[float]],
-                    T: Tensor1D_or_3D, P: Tensor1D_or_3D,
-                    rho: Tensor1D_or_3D, w: Tensor3D,
-                    t_cloud: float, dh: float, TK: float = 0.,
-                    n_workers: int = None) -> np.ndarray:
-                if Model.compat.are_numpy_arrays(T, P, rho, w):
-                    return Model.multi.parallel(frequencies,
-                                                func=Model.Downward.brightness_temperature,
-                                                args=(T, P, rho, w, t_cloud, dh, TK,),
-                                                n_workers=n_workers)
-                elif Model.compat.are_tensors(T, P, rho, w):
-                    return np.asarray([Model.Downward.brightness_temperature(f, T, P, rho, w, t_cloud, dh, TK)
-                                       for f in frequencies], dtype=object)
-                raise TypeError('массивы должны быть одинаковых типов')
+    @storage
+    def brightness_temperature_downward(self, frequency: float) -> Union[float, Tensor2D]:
+        g = dB2np * self.gamma_summary(frequency)
+        f = lambda h: (Model._compat.at(self.T, h) + 273.15) * Model._compat.at(g, h) * \
+            Model._compat.exp(-Model._compat.integrate_bounds(g, 0, h, self.dh))
+        inf = Model._compat.last_index(g)
+        TauExp = Model._compat.exp(-self.tau_summary(frequency))
+        return Model._compat.integrate_callable(f, 0, inf, self.dh) + self.T_cosmic * TauExp
+
+    def brightness_temperatures_downward(self, frequencies: Union[np.ndarray, List[float], Iterable[float]],
+                                         n_workers: int = None):
+        if not gpu:
+            return Model._multi.parallel(frequencies,
+                                         func=self.brightness_temperature_downward,
+                                         args=(), n_workers=n_workers)
+        return np.asarray([self.brightness_temperature_downward(f) for f in frequencies], dtype=object)
+
+    @storage
+    def T_avg_downward(self, frequency: float) -> Union[float, TensorLike]:
+        return Model.Downward.T_avg(frequency, self.T_std, self.P_std, self.rho_std, self.dh, self.T_cosmic)
 
     class Upward:
         @staticmethod
         def brightness_temperature(frequency: float,
                                    T: Tensor1D_or_3D, P: Tensor1D_or_3D,
                                    rho: Tensor1D_or_3D, w: Tensor3D,
-                                   t_cloud: float, dh: float) -> Union[float, Tensor2D]:
-            g = Model.attenuation.gamma_summary(frequency, T, P, rho, w, t_cloud)
-            inf = Model.compat.last_index(g)
-            f = lambda h: (Model.compat.at(T, h) + 273.15) * Model.compat.at(g, h) * \
-                Model.compat.exp(-Model.compat.integrate_bounds(g, h, inf, dh))
-            return Model.compat.integrate_callable(f, 0, inf, dh)
+                                   t_cloud: float, dh: Union[float, Tensor1D]) -> Union[float, Tensor2D]:
+            g = Model.attenuation.gamma_summary(frequency, T, P, rho, w, t_cloud, nepers=True)
+            inf = Model._compat.last_index(g)
+            f = lambda h: (Model._compat.at(T, h) + 273.15) * Model._compat.at(g, h) * \
+                Model._compat.exp(-Model._compat.integrate_bounds(g, h, inf, dh))
+            return Model._compat.integrate_callable(f, 0, inf, dh)
+
+        @staticmethod
+        def brightness_temperatures(
+                frequencies: Union[np.ndarray, List[float], Iterable[float]],
+                T: Tensor1D_or_3D, P: Tensor1D_or_3D,
+                rho: Tensor1D_or_3D, w: Tensor3D,
+                t_cloud: float, dh: Union[float, Tensor1D], n_workers: int = None) -> np.ndarray:
+            if not gpu:
+                return Model._multi.parallel(frequencies,
+                                             func=Model.Upward.brightness_temperature,
+                                             args=(T, P, rho, w, t_cloud, dh,),
+                                             n_workers=n_workers)
+            return np.asarray([Model.Upward.brightness_temperature(f, T, P, rho, w, t_cloud, dh, )
+                               for f in frequencies], dtype=object)
 
         @staticmethod
         def T_avg(frequency: float,
                   T_standard: Tensor1D, P_standard: Tensor1D, rho_standard: Tensor1D,
-                  dh: float) -> Union[float, TensorLike]:
-            g = Model.attenuation.gamma_summary(frequency, T_standard, P_standard, rho_standard)
-            inf = Model.compat.last_index(g)
-            f = lambda h: (Model.compat.at(T_standard, h) + 273.15) * Model.compat.at(g, h) * \
-                Model.compat.exp(-Model.compat.integrate_bounds(g, h, inf, dh))
-            Tb_up = Model.compat.integrate_callable(f, 0, inf, dh)
-            TauExp = Model.compat.exp(-Model.compat.integrate(g, dh))
+                  dh: Union[float, Tensor1D]) -> Union[float, TensorLike]:
+            g = Model.attenuation.gamma_summary(frequency, T_standard, P_standard, rho_standard, nepers=True)
+            inf = Model._compat.last_index(g)
+            f = lambda h: (Model._compat.at(T_standard, h) + 273.15) * Model._compat.at(g, h) * \
+                Model._compat.exp(-Model._compat.integrate_bounds(g, h, inf, dh))
+            Tb_up = Model._compat.integrate_callable(f, 0, inf, dh)
+            TauExp = Model._compat.exp(-Model._compat.integrate(g, dh))
             return Tb_up / (1. - TauExp)
 
-        class multifreq:
-            @staticmethod
-            def brightness_temperature(
-                    frequencies: Union[np.ndarray, List[float], Iterable[float]],
-                    T: Tensor1D_or_3D, P: Tensor1D_or_3D,
-                    rho: Tensor1D_or_3D, w: Tensor3D,
-                    t_cloud: float, dh: float, n_workers: int = None) -> np.ndarray:
-                if Model.compat.are_numpy_arrays(T, P, rho, w):
-                    return Model.multi.parallel(frequencies,
-                                                func=Model.Upward.brightness_temperature,
-                                                args=(T, P, rho, w, t_cloud, dh,),
-                                                n_workers=n_workers)
-                elif Model.compat.are_tensors(T, P, rho, w):
-                    return np.asarray([Model.Upward.brightness_temperature(f, T, P, rho, w, t_cloud, dh,)
-                                       for f in frequencies], dtype=object)
-                raise TypeError('массивы должны быть одинаковых типов')
+    @storage
+    def brightness_temperature_upward(self, frequency: float) -> Union[float, Tensor2D]:
+        g = dB2np * self.gamma_summary(frequency)
+        inf = Model._compat.last_index(g)
+        f = lambda h: (Model._compat.at(self.T, h) + 273.15) * Model._compat.at(g, h) * \
+            Model._compat.exp(-Model._compat.integrate_bounds(g, h, inf, dh))
+        return Model._compat.integrate_callable(f, 0, inf, dh)
+
+    def brightness_temperatures_upward(self, frequencies: Union[np.ndarray, List[float], Iterable[float]],
+                                       n_workers: int = None):
+        if not gpu:
+            return Model._multi.parallel(frequencies,
+                                         func=self.brightness_temperature_upward,
+                                         args=(), n_workers=n_workers)
+        return np.asarray([self.brightness_temperature_upward(f) for f in frequencies], dtype=object)
+
+    @storage
+    def T_avg_upward(self, frequency: float) -> Union[float, TensorLike]:
+        return Model.Upward.T_avg(frequency, self.T_std, self.P_std, self.rho_std, self.dh)
 
     class Satellite:
         @staticmethod
         def brightness_temperature(frequency: float,
-                                   Tsurface: Union[float, Tensor2D],
-                                   Salinity: Union[float, Tensor2D],
+                                   Tsurface_ocean: Union[float, Tensor2D],
+                                   Salinity_ocean: Union[float, Tensor2D],
                                    T: Tensor1D_or_3D, P: Tensor1D_or_3D,
                                    rho: Tensor1D_or_3D, w: Tensor3D,
                                    t_cloud: float, dh: float,
                                    TK: float = 0.) -> Union[float, Tensor2D]:
-            g = Model.attenuation.gamma_summary(frequency, T, P, rho, w, t_cloud)
-            inf = Model.compat.last_index(g)
+            g = Model.attenuation.gamma_summary(frequency, T, P, rho, w, t_cloud, nepers=True)
+            inf = Model._compat.last_index(g)
 
-            f_down = lambda h: (Model.compat.at(T, h) + 273.15) * Model.compat.at(g, h) * \
-                Model.compat.exp(-Model.compat.integrate_bounds(g, 0, h, dh))
-            f_up = lambda h: (Model.compat.at(T, h) + 273.15) * Model.compat.at(g, h) * \
-                Model.compat.exp(-Model.compat.integrate_bounds(g, h, inf, dh))
+            f_down = lambda h: (Model._compat.at(T, h) + 273.15) * Model._compat.at(g, h) * \
+                Model._compat.exp(-Model._compat.integrate_bounds(g, 0, h, dh))
+            f_up = lambda h: (Model._compat.at(T, h) + 273.15) * Model._compat.at(g, h) * \
+                Model._compat.exp(-Model._compat.integrate_bounds(g, h, inf, dh))
 
-            TauExp = Model.compat.exp(-Model.compat.integrate(g, dh))
+            TauExp = Model._compat.exp(-Model._compat.integrate(g, dh))
             Tb_down: Union[float, np.ndarray, tf.Tensor] = \
-                Model.compat.integrate_callable(f_down, 0, inf, dh) + TK * TauExp
+                Model._compat.integrate_callable(f_down, 0, inf, dh) + TK * TauExp
             Tb_up: Union[float, np.ndarray, tf.Tensor] = \
-                Model.compat.integrate_callable(f_up, 0, inf, dh)
+                Model._compat.integrate_callable(f_up, 0, inf, dh)
 
-            R = Model.reflection.R(frequency, Tsurface, Salinity)
+            R = Model.reflection.smooth_water.R(frequency, Tsurface_ocean, Salinity_ocean)
             kappa = 1. - R
-            if isinstance(g, (float, np.ndarray)):
-                return (Tsurface + 273.15) * kappa * TauExp + Tb_up + R * Tb_down * TauExp
-            return Model.compat.to_tensor((Tsurface + 273.15) * kappa) * TauExp + Tb_up + \
-                Model.compat.to_tensor(R) * Tb_down * TauExp
+            if not gpu:
+                return (Tsurface_ocean + 273.15) * kappa * TauExp + Tb_up + R * Tb_down * TauExp
+            return Model._compat.to_tensor((Tsurface_ocean + 273.15) * kappa) * TauExp + Tb_up + \
+                Model._compat.to_tensor(R) * Tb_down * TauExp
 
-        class multifreq:
-            @staticmethod
-            def brightness_temperature(frequencies: Union[np.ndarray, List[float], Iterable[float]],
-                                       Tsurface: Union[float, Tensor2D],
-                                       Salinity: Union[float, Tensor2D],
-                                       T: Tensor1D_or_3D, P: Tensor1D_or_3D,
-                                       rho: Tensor1D_or_3D, w: Tensor3D,
-                                       t_cloud: float, dh: float,
-                                       TK: float = 0., n_workers: int = None) -> np.ndarray:
-                if Model.compat.are_numpy_arrays(T, P, rho, w):
-                    return Model.multi.parallel(frequencies,
-                                                func=Model.Satellite.brightness_temperature,
-                                                args=(Tsurface, Salinity, T, P, rho, w, t_cloud, dh, TK,),
-                                                n_workers=n_workers)
-                elif Model.compat.are_tensors(T, P, rho, w):
-                    return np.asarray([Model.Satellite.brightness_temperature(
-                        f, Tsurface, Salinity, T, P, rho, w, t_cloud, dh, TK,)
-                                       for f in frequencies], dtype=object)
-                raise TypeError('массивы должны быть одинаковых типов')
+        @staticmethod
+        def brightness_temperatures(frequencies: Union[np.ndarray, List[float], Iterable[float]],
+                                    Tsurface_ocean: Union[float, Tensor2D],
+                                    Salinity_ocean: Union[float, Tensor2D],
+                                    T: Tensor1D_or_3D, P: Tensor1D_or_3D,
+                                    rho: Tensor1D_or_3D, w: Tensor3D,
+                                    t_cloud: float, dh: float,
+                                    TK: float = 0., n_workers: int = None) -> np.ndarray:
+            if not gpu:
+                return Model._multi.parallel(frequencies,
+                                             func=Model.Satellite.brightness_temperature,
+                                             args=(Tsurface_ocean, Salinity_ocean, T, P, rho, w, t_cloud, dh, TK,),
+                                             n_workers=n_workers)
+            return np.asarray([Model.Satellite.brightness_temperature(
+                f, Tsurface_ocean, Salinity_ocean, T, P, rho, w, t_cloud, dh, TK, )
+                for f in frequencies], dtype=object)
+
+    @storage
+    def brightness_temperature_satellite(self, frequency: float):
+        TauExp = Model._compat.exp(-self.tau_summary(frequency))
+        Tb_down = self.brightness_temperature_downward(frequency)
+        Tb_up = self.brightness_temperature_upward(frequency)
+        R = self.smooth_water_reflectance(frequency)
+        kappa = 1. - R
+        if not gpu:
+            return (self.Tsurface_ocean + 273.15) * kappa * TauExp + Tb_up + R * Tb_down * TauExp
+        return Model._compat.to_tensor((self.Tsurface_ocean + 273.15) * kappa) * TauExp + Tb_up + \
+            Model._compat.to_tensor(R) * Tb_down * TauExp
+
+    def brightness_temperatures_satellite(self, frequencies: Union[np.ndarray, List[float], Iterable[float]],
+                                          n_workers: int = None):
+        if not gpu:
+            def __(frequency: float):
+                key = (frequency, self.brightness_temperature_satellite.__name__)
+                if key not in self._storage:
+                    self._storage[key] = Model.brightness_temperature_satellite(self, frequency)
+                return self._storage[key]
+            return Model._multi.parallel(frequencies,
+                                         func=__,
+                                         args=(), n_workers=n_workers)
+        return np.asarray([self.brightness_temperature_satellite(f) for f in frequencies], dtype=object)
 
     class Inverse:
         class downward:
@@ -804,8 +1103,8 @@ class Model:
             def opacity(tb: Union[float, Tensor2D], t_avg: Union[float, TensorLike],
                         theta: float = None) -> Union[float, Tensor2D]:
                 if theta is None:
-                    return Model.compat.log(t_avg) - Model.compat.log(t_avg - tb)
-                return (Model.compat.log(t_avg) - Model.compat.log(t_avg - tb)) * np.cos(theta)
+                    return Model._compat.log(t_avg) - Model._compat.log(t_avg - tb)
+                return (Model._compat.log(t_avg) - Model._compat.log(t_avg - tb)) * np.cos(theta)
 
         # class satellite:
         #     @staticmethod
@@ -827,40 +1126,68 @@ if __name__ == '__main__':
     N = 500
     dh = H / (N - 1.)
 
-    sp = StandardProfiles(H=H, dh=dh, nx=nx, ny=ny, near_ground=False)
-    T, P, rho = sp.T(celsius=True), sp.P(), sp.rho()
+    # sp = Standard(H=H, dh=dh, nx=nx, ny=ny, near_ground=False)
+    # T, P, rho = sp.T(celsius=True), sp.P(), sp.rho()
+    #
+    # domain = Planck((50, 50, 10), (nx, ny, N))
+    # hmap = domain.create_height_map(
+    #     Dm=3., K=100, alpha=1., beta=0.5, eta=1., seed=42
+    # )
+    # # plt.figure('height map')
+    # # plt.imshow(hmap)
+    # # plt.colorbar()
+    # # plt.show()
+    # # hmap = np.zeros((1, 1, 500))
+    # w = domain.liquid_water_distribution(height_map=hmap, const_w=False)
+    #
+    # # freqs, tbs = [], []
+    # # with open('tbs_check.txt', 'r') as file:
+    # #     for line in file:
+    # #         line = re.split(r'[ \t]', re.sub(r'[\r\n]', '', line))
+    # #         f, tb = [float(n) for n in line if n]
+    # #         freqs.append(f)
+    # #         tbs.append(tb)
+    #
+    # start_time = time.time()
+    # brt = Model.Satellite.brightness_temperatures([18.0, 22.2, 27.2], 15., 0., T, P, rho, w, -2., dh, n_workers=8)
+    # # brt = Model.Satellite.Multifreq.brightness_temperature(freqs, 15., 0., T, P, rho, w, -2., dh, n_workers=8)
+    # print("--- %s seconds ---" % (time.time() - start_time))
+    #
+    # plt.figure('brightness temperature')
+    # # plt.ylim((50, 300))
+    # # plt.scatter(freqs, tbs, label='test', marker='x', color='black')
+    # plt.imshow(Model._compat.to_numpy_array(brt[1], float))
+    # # plt.plot(freqs, [Model.compat.to_numpy_array(brt[j], float)[0][0] for j in range(len(freqs))], label='result')
+    # plt.colorbar()
+    # # plt.legend(loc='best', frameon=False)
+    # plt.savefig('tbs_check.png', dpi=300)
+    # plt.show()
 
-    domain = Domain((50, 50, 10), (nx, ny, N))
+    std = Standard(H=H, dh=dh, nx=nx, ny=ny, near_ground=False)
+    model = Model(std.T(celsius=True), std.P(), std.rho(), dh=dh)
+    domain = Planck((50, 50, 10), (nx, ny, N))
     hmap = domain.create_height_map(
         Dm=3., K=100, alpha=1., beta=0.5, eta=1., seed=42
     )
-    # plt.figure('height map')
-    # plt.imshow(hmap)
-    # plt.colorbar()
-    # plt.show()
-    # hmap = np.zeros((1, 1, 500))
-    w = domain.liquid_water_distribution(height_map=hmap, const_w=False)
-
-    # freqs, tbs = [], []
-    # with open('tbs_check.txt', 'r') as file:
-    #     for line in file:
-    #         line = re.split(r'[ \t]', re.sub(r'[\r\n]', '', line))
-    #         f, tb = [float(n) for n in line if n]
-    #         freqs.append(f)
-    #         tbs.append(tb)
+    model.set(T=std.T(celsius=True), P=std.P(), rho=std.rho())
+    model.set(w=domain.liquid_water_distribution(hmap), t_cloud=-2.)
+    model.set(Tsurface_ocean=15., Salinity_ocean=0.)
 
     start_time = time.time()
-    brt = Model.Satellite.multifreq.brightness_temperature([18.0, 22.2, 27.2], 15., 0., T, P, rho, w, -2., dh,
-                                                           n_workers=8)
-    # brt = Model.Satellite.Multifreq.brightness_temperature(freqs, 15., 0., T, P, rho, w, -2., dh, n_workers=8)
+    # brt = model.Satellite(model).brightness_temperatures([18.0, 22.2, 27.2], n_workers=8)
+    # tau = model.tau_summary(22.2)
+    brt = model.brightness_temperatures_satellite([18.0])
+    print("--- %s seconds ---" % (time.time() - start_time))
+    print(model._storage)
+
+    start_time = time.time()
+    brt = model.brightness_temperatures_satellite([18.0, 22.2, 27.2, 37.5])
     print("--- %s seconds ---" % (time.time() - start_time))
 
     plt.figure('brightness temperature')
-    # plt.ylim((50, 300))
-    # plt.scatter(freqs, tbs, label='test', marker='x', color='black')
-    plt.imshow(Model.compat.to_numpy_array(brt[1], float))
-    # plt.plot(freqs, [Model.compat.to_numpy_array(brt[j], float)[0][0] for j in range(len(freqs))], label='result')
+    plt.imshow(Model._compat.to_numpy_array(brt[1], float))
+    # plt.imshow(Model._compat.to_numpy_array(tau, float))
+    # plt.imshow(Model._compat.to_numpy_array(brt, float))
     plt.colorbar()
-    # plt.legend(loc='best', frameon=False)
     plt.savefig('tbs_check.png', dpi=300)
     plt.show()
