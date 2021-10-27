@@ -270,7 +270,7 @@ class ar(cpu):
                 """
                 rp = P / 1013
                 rt = 288 / (273 + T)
-                f = frequency
+                f = tf.convert_to_tensor(frequency, dtype=gpu_float)
                 gamma = 0
                 if f <= 57:
                     gamma = (7.27 * rt / (f * f + 0.351 * rp * rp * rt * rt) +
@@ -300,7 +300,7 @@ class ar(cpu):
                 """
                 rp = P / 1013
                 rt = 288 / (273 + T)
-                f = frequency
+                f = tf.convert_to_tensor(frequency, dtype=gpu_float)
                 gamma = 0
                 if f <= 350:
                     gamma = (3.27 / 100 * rt +
@@ -688,7 +688,8 @@ class ar(cpu):
             :param atm: объект Atmosphere (атмосфера)
             :param srf: объект Surface (поверхность)
             """
-            tau_exp = ar._c.exp(-1 * atm.opacity.summary(frequency))
+            tau = atm.opacity.summary(frequency)
+            tau_exp = ar._c.exp(-1 * tau)
             tb_down = atm.downward.brightness_temperature(frequency)
             tb_up = atm.upward.brightness_temperature(frequency)
             r = srf.reflectivity(frequency)

@@ -41,6 +41,7 @@ def ex3():
     atmosphere = ar.Atmosphere.Standard()
     atmosphere.effective_cloud_temperature = -2.
     atmosphere.integration_method = 'simpson'
+    atmosphere.use_storage = False
 
     surface = ar.SmoothWaterSurface()
     surface.temperature = 15.
@@ -61,6 +62,8 @@ def ex3():
     print("--- %s seconds ---" % (time.time() - start_time))
 
     plt.figure('brightness temperature')
+    plt.xlabel('frequency, GHz')
+    plt.ylabel('brightness temperature, K')
     plt.ylim((50, 300))
     plt.scatter(freqs, tbs, label='test', marker='x', color='black')
     plt.plot(freqs_, np.asarray(brt, dtype=float), label='result')
@@ -82,4 +85,4 @@ def ex4():
 
 if __name__ == '__main__':
 
-    ex1()
+    ex3()

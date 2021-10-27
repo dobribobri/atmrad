@@ -3,7 +3,7 @@ from functools import wraps
 from multiprocessing import Manager, Process
 from typing import Union, Tuple, List, Iterable, Callable
 import numpy as np
-import warnings
+# import warnings
 
 from domain import Domain3D
 from cloudforms import CylinderCloud
@@ -207,8 +207,7 @@ class ar:
                     out = manager.list()
                     processes = []
                     for i, f in enumerate(frequencies):
-                        # p = Process(target=out.append, args=((i, func(f, *args)),))
-                        p = Process(target=lambda _i, _f: out.append((i, func(f, *args))), args=(i, f,))
+                        p = Process(target=out.append, args=((i, func(f, *args)),))
                         processes.append(p)
                     ar._c.multi.do(processes, n_workers)
                     out = list(out)
@@ -797,8 +796,7 @@ class ar:
                 :param frequencies: список частот в ГГц
                 :param n_workers: количество потоков для распараллеливания
                 """
-                if self.use_storage:
-                    warnings.warn('storage не может быть задействован')
+
                 return ar._c.multi.parallel(frequencies,
                                             func=self.downward.brightness_temperature,
                                             args=(), n_workers=n_workers)
@@ -832,8 +830,7 @@ class ar:
                 :param frequencies: список частот в ГГц
                 :param n_workers: количество потоков для распараллеливания
                 """
-                if self.use_storage:
-                    warnings.warn('storage не может быть задействован')
+
                 return ar._c.multi.parallel(frequencies,
                                             func=self.upward.brightness_temperature,
                                             args=(), n_workers=n_workers)
@@ -1036,8 +1033,7 @@ class ar:
                 :param srf: объект Surface (поверхность)
                 :param n_workers: количество потоков для распараллеливания
                 """
-                if atm.use_storage:
-                    warnings.warn('storage не может быть задействован')
+
                 return ar._c.multi.parallel(frequencies,
                                             func=ar.satellite.brightness_temperature,
                                             args=(atm, srf,), n_workers=n_workers)
