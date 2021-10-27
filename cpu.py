@@ -3,6 +3,7 @@ from functools import wraps
 from multiprocessing import Manager, Process
 from typing import Union, Tuple, List, Iterable, Callable
 import numpy as np
+import warnings
 
 from domain import Domain3D
 from cloudforms import CylinderCloud
@@ -26,15 +27,17 @@ dB2np = 0.23255814
 np2dB = 1. / dB2np
 
 
-def atmosphere(method):
+def atmospheric(method):
     @wraps(method)
     def wrapper(obj: 'ar.Atmosphere', frequency: float) -> Union[Number, TensorLike]:
         key = (frequency, method.__qualname__)
         if hasattr(obj, 'outer'):
             obj = obj.outer
-        if key not in obj.storage:
-            obj.storage[key] = method(obj, frequency)
-        return obj.storage[key]
+        if obj.use_storage:
+            if key not in obj.storage:
+                obj.storage[key] = method(obj, frequency)
+            return obj.storage[key]
+        return method(obj, frequency)
     return wrapper
 
 
@@ -204,7 +207,8 @@ class ar:
                     out = manager.list()
                     processes = []
                     for i, f in enumerate(frequencies):
-                        p = Process(target=out.append, args=((i, func(f, *args)),))  # TBD
+                        # p = Process(target=out.append, args=((i, func(f, *args)),))
+                        p = Process(target=lambda _i, _f: out.append((i, func(f, *args))), args=(i, f,))
                         processes.append(p)
                     ar._c.multi.do(processes, n_workers)
                     out = list(out)
@@ -518,6 +522,7 @@ class ar:
             self._tcl = -2  # по Цельсию
             self.integration_method = 'trapz'
             self.storage: dict = {}
+            self.use_storage = True
             for name, value in kwargs.items():
                 self.__setattr__(name, value)
             self.attenuation, self.opacity, self.downward, self.upward = \
@@ -684,7 +689,7 @@ class ar:
             def __init__(self, atmosphere: 'ar.Atmosphere'):
                 self.outer = atmosphere
 
-            @atmosphere
+            @atmospheric
             def oxygen(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 См. Rec.ITU-R. P.676-3
@@ -694,8 +699,8 @@ class ar:
                 """
                 return ar.static.attenuation.oxygen(frequency, self._T, self._P)
 
-            @atmosphere
-            def water_vapor(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+            @atmospheric
+            def water_vapor(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 См. Rec.ITU-R. P.676-3
 
@@ -704,8 +709,8 @@ class ar:
                 """
                 return ar.static.attenuation.water_vapor(frequency, self._T, self._P, self._rho)
 
-            @atmosphere
-            def liquid_water(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+            @atmospheric
+            def liquid_water(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 Б.Г. Кутуза
 
@@ -714,8 +719,8 @@ class ar:
                 """
                 return ar.static.attenuation.liquid_water(frequency, self._tcl, self._w)
 
-            @atmosphere
-            def summary(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+            @atmospheric
+            def summary(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 :param frequency: частота излучения в ГГц
                 :return: суммарный по атмосферным составляющим погонный коэффициент поглощения (Дб/км)
@@ -731,32 +736,32 @@ class ar:
             def __init__(self, atmosphere: 'ar.Atmosphere'):
                 self.outer = atmosphere
 
-            @atmosphere
-            def oxygen(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def oxygen(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в кислороде (путем интегрирования погонного коэффициента). В неперах
                 """
                 return dB2np * ar._c.integrate.full(self.attenuation.oxygen(frequency),
                                                     self._dh, self.integration_method)
 
-            @atmosphere
-            def water_vapor(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def water_vapor(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в водяном паре (путем интегрирования погонного коэффициента). В неперах
                 """
                 return dB2np * ar._c.integrate.full(self.attenuation.water_vapor(frequency),
                                                     self._dh, self.integration_method)
 
-            @atmosphere
-            def liquid_water(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def liquid_water(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в облаке (путем интегрирования погонного коэффициента). В неперах
                 """
                 return dB2np * ar._c.integrate.full(self.attenuation.liquid_water(frequency),
                                                     self._dh, self.integration_method)
 
-            @atmosphere
-            def summary(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def summary(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в атмосфере (путем интегрирования). В неперах
                 """
@@ -770,8 +775,8 @@ class ar:
             def __init__(self, atmosphere: 'ar.Atmosphere'):
                 self.outer = atmosphere
 
-            @atmosphere
-            def brightness_temperature(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def brightness_temperature(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 Яркостная температура нисходящего излучения
 
@@ -784,7 +789,7 @@ class ar:
                 inf = ar._c.indexer.last_index(g)
                 return ar._c.integrate.callable(f, 0, inf, self._dh)
 
-            def brightness_temperatures(self, frequencies: Union[np.ndarray, List[float]],
+            def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
                 """
                 Яркостная температура нисходящего излучения
@@ -792,6 +797,8 @@ class ar:
                 :param frequencies: список частот в ГГц
                 :param n_workers: количество потоков для распараллеливания
                 """
+                if self.use_storage:
+                    warnings.warn('storage не может быть задействован')
                 return ar._c.multi.parallel(frequencies,
                                             func=self.downward.brightness_temperature,
                                             args=(), n_workers=n_workers)
@@ -803,8 +810,8 @@ class ar:
             def __init__(self, atmosphere: 'ar.Atmosphere'):
                 self.outer = atmosphere
 
-            @atmosphere
-            def brightness_temperature(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def brightness_temperature(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 Яркостная температура восходящего излучения (без учета подстилающей поверхности)
 
@@ -817,7 +824,7 @@ class ar:
                     ar._c.exp(-1 * ar._c.integrate.with_limits(g, h, inf, self._dh, self.integration_method))
                 return ar._c.integrate.callable(f, 0, inf, self._dh)
 
-            def brightness_temperatures(self, frequencies: Union[np.ndarray, List[float]],
+            def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
                 """
                 Яркостная температура восходящего излучения (без учета подстилающей поверхности)
@@ -825,6 +832,8 @@ class ar:
                 :param frequencies: список частот в ГГц
                 :param n_workers: количество потоков для распараллеливания
                 """
+                if self.use_storage:
+                    warnings.warn('storage не может быть задействован')
                 return ar._c.multi.parallel(frequencies,
                                             func=self.upward.brightness_temperature,
                                             args=(), n_workers=n_workers)
@@ -1008,8 +1017,7 @@ class ar:
             :param atm: объект Atmosphere (атмосфера)
             :param srf: объект Surface (поверхность)
             """
-            # tau_exp = ar._c.exp(-1 * atm.opacity.summary(frequency))
-            tau_exp = ar._c.exp(-ar._c.integrate.full(dB2np * atm.attenuation.summary(frequency), atm.dh, atm.integration_method))
+            tau_exp = ar._c.exp(-1 * atm.opacity.summary(frequency))
             tb_down = atm.downward.brightness_temperature(frequency)
             tb_up = atm.upward.brightness_temperature(frequency)
             r = srf.reflectivity(frequency)
@@ -1028,6 +1036,8 @@ class ar:
                 :param srf: объект Surface (поверхность)
                 :param n_workers: количество потоков для распараллеливания
                 """
+                if atm.use_storage:
+                    warnings.warn('storage не может быть задействован')
                 return ar._c.multi.parallel(frequencies,
                                             func=ar.satellite.brightness_temperature,
                                             args=(atm, srf,), n_workers=n_workers)

@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 def ex1():
     atmosphere = ar.Atmosphere.Standard()
     atmosphere.liquid_water = ar.Planck().get_lw_dist()
+    # atmosphere.use_storage = False
 
     surface = ar.SmoothWaterSurface()
 
@@ -81,4 +82,4 @@ def ex4():
 
 if __name__ == '__main__':
 
-    ex3()
+    ex1()

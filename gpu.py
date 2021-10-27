@@ -6,7 +6,7 @@ from cpu import ar as cpu
 from cpu import TensorLike, Number
 from cpu import Tensor1D, Tensor2D, Tensor1D_or_3D
 from cpu import C, dB2np, np2dB
-from cpu import atmosphere
+from cpu import atmospheric
 
 import tensorflow as tf
 config = tf.compat.v1.ConfigProto()
@@ -455,8 +455,8 @@ class ar(cpu):
             """
             Погонные коэффициенты поглощения (ослабления)
             """
-            @atmosphere
-            def oxygen(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+            @atmospheric
+            def oxygen(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 См. Rec.ITU-R. P.676-3
 
@@ -465,8 +465,8 @@ class ar(cpu):
                 """
                 return ar.static.attenuation.oxygen(frequency, self._T, self._P)
 
-            @atmosphere
-            def water_vapor(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+            @atmospheric
+            def water_vapor(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 См. Rec.ITU-R. P.676-3
 
@@ -475,8 +475,8 @@ class ar(cpu):
                 """
                 return ar.static.attenuation.water_vapor(frequency, self._T, self._P, self._rho)
 
-            @atmosphere
-            def liquid_water(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+            @atmospheric
+            def liquid_water(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 Б.Г. Кутуза
 
@@ -490,32 +490,32 @@ class ar(cpu):
             """
             Расчет полного поглощения атмосферы (оптическая толщина)
             """
-            @atmosphere
-            def oxygen(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def oxygen(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в кислороде (путем интегрирования погонного коэффициента). В неперах
                 """
                 return dB2np * ar._c.integrate.full(self.attenuation.oxygen(frequency),
                                                     self._dh, self.integration_method)
 
-            @atmosphere
-            def water_vapor(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def water_vapor(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в водяном паре (путем интегрирования погонного коэффициента). В неперах
                 """
                 return dB2np * ar._c.integrate.full(self.attenuation.water_vapor(frequency),
                                                     self._dh, self.integration_method)
 
-            @atmosphere
-            def liquid_water(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def liquid_water(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в облаке (путем интегрирования погонного коэффициента). В неперах
                 """
                 return dB2np * ar._c.integrate.full(self.attenuation.liquid_water(frequency),
                                                     self._dh, self.integration_method)
 
-            @atmosphere
-            def summary(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def summary(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в атмосфере (путем интегрирования). В неперах
                 """
@@ -526,8 +526,8 @@ class ar(cpu):
             """
             Нисходящее излучение
             """
-            @atmosphere
-            def brightness_temperature(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def brightness_temperature(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 Яркостная температура нисходящего излучения
 
@@ -540,7 +540,7 @@ class ar(cpu):
                 inf = ar._c.indexer.last_index(g)
                 return ar._c.integrate.callable(f, 0, inf, self._dh)
 
-            def brightness_temperatures(self, frequencies: Union[np.ndarray, List[float]],
+            def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
                 """
                 Яркостная температура нисходящего излучения
@@ -557,8 +557,8 @@ class ar(cpu):
             """
             Восходящее излучение
             """
-            @atmosphere
-            def brightness_temperature(self, frequency: float) -> Union[float, Tensor2D]:
+            @atmospheric
+            def brightness_temperature(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 Яркостная температура восходящего излучения (без учета подстилающей поверхности)
 
@@ -571,7 +571,7 @@ class ar(cpu):
                     ar._c.exp(-1 * ar._c.integrate.with_limits(g, h, inf, self._dh, self.integration_method))
                 return ar._c.integrate.callable(f, 0, inf, self._dh)
 
-            def brightness_temperatures(self, frequencies: Union[np.ndarray, List[float]],
+            def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
                 """
                 Яркостная температура восходящего излучения (без учета подстилающей поверхности)
