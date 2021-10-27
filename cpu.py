@@ -530,25 +530,76 @@ class ar:
             self.downward = ar.Atmosphere.downward(self)
             self.upward = ar.Atmosphere.upward(self)
 
+        def refresh(self, _keys: Union[str, List[str]] = None):
+            if _keys is None:
+                self.storage.clear()
+            for freq, name in list(self.storage.keys()):
+                if name in _keys:
+                    del self.storage[(freq, name)]
+
         @property
         def temperature(self) -> Tensor1D_or_3D:
             return self._T
+
+        @temperature.setter
+        def temperature(self, val: Tensor1D_or_3D):
+            self._T = val
+            affected = [self.attenuation.oxygen.__qualname__,
+                        self.attenuation.water_vapor.__qualname__,
+                        self.attenuation.summary.__qualname__,
+                        self.opacity.oxygen.__qualname__,
+                        self.opacity.water_vapor.__qualname__,
+                        self.opacity.summary.__qualname__,
+                        self.downward.brightness_temperature.__qualname__,
+                        self.upward.brightness_temperature.__qualname__]
+            self.refresh(affected)
 
         @property
         def pressure(self) -> Tensor1D_or_3D:
             return self._P
 
+        @pressure.setter
+        def pressure(self, val: Tensor1D_or_3D):
+            self._P = val
+            affected = [self.attenuation.oxygen.__qualname__,
+                        self.attenuation.water_vapor.__qualname__,
+                        self.attenuation.summary.__qualname__,
+                        self.opacity.oxygen.__qualname__,
+                        self.opacity.water_vapor.__qualname__,
+                        self.opacity.summary.__qualname__,
+                        self.downward.brightness_temperature.__qualname__,
+                        self.upward.brightness_temperature.__qualname__]
+            self.refresh(affected)
+
         @property
         def absolute_humidity(self) -> Tensor1D_or_3D:
             return self._rho
+
+        @absolute_humidity.setter
+        def absolute_humidity(self, val: Tensor1D_or_3D):
+            self._rho = val
+            affected = [self.attenuation.water_vapor.__qualname__,
+                        self.attenuation.summary.__qualname__,
+                        self.opacity.water_vapor.__qualname__,
+                        self.opacity.summary.__qualname__,
+                        self.downward.brightness_temperature.__qualname__,
+                        self.upward.brightness_temperature.__qualname__]
+            self.refresh(affected)
 
         @property
         def liquid_water(self) -> Tensor1D_or_3D:
             return self._w
 
         @liquid_water.setter
-        def liquid_water(self, value: Tensor1D_or_3D):
-            self._w = value
+        def liquid_water(self, val: Tensor1D_or_3D):
+            self._w = val
+            affected = [self.attenuation.liquid_water.__qualname__,
+                        self.attenuation.summary.__qualname__,
+                        self.opacity.liquid_water.__qualname__,
+                        self.opacity.summary.__qualname__,
+                        self.downward.brightness_temperature.__qualname__,
+                        self.upward.brightness_temperature.__qualname__]
+            self.refresh(affected)
 
         @property
         def altitudes(self) -> np.ndarray:
@@ -561,6 +612,17 @@ class ar:
         @property
         def effective_cloud_temperature(self) -> float:
             return self._tcl
+
+        @effective_cloud_temperature.setter
+        def effective_cloud_temperature(self, val: float):
+            self._tcl = val
+            affected = [self.attenuation.liquid_water.__qualname__,
+                        self.attenuation.summary.__qualname__,
+                        self.opacity.liquid_water.__qualname__,
+                        self.opacity.summary.__qualname__,
+                        self.downward.brightness_temperature.__qualname__,
+                        self.upward.brightness_temperature.__qualname__]
+            self.refresh(affected)
 
         @effective_cloud_temperature.setter
         def effective_cloud_temperature(self, value: float):

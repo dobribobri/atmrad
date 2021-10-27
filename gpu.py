@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 from typing import Union, Tuple, List, Iterable, Callable
 import numpy as np
-from ar import ar as cpu
-from ar import TensorLike, Number
-from ar import Tensor1D, Tensor2D, Tensor1D_or_3D
-from ar import C, dB2np, np2dB
-from ar import atmosphere
+from cpu import ar as cpu
+from cpu import TensorLike, Number
+from cpu import Tensor1D, Tensor2D, Tensor1D_or_3D
+from cpu import C, dB2np, np2dB
+from cpu import atmosphere
 
 import tensorflow as tf
 config = tf.compat.v1.ConfigProto()
