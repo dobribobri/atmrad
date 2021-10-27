@@ -463,7 +463,7 @@ class ar(cpu):
                 :param frequency: частота излучения в ГГц
                 :return: погонный коэффициент поглощения в кислороде (Дб/км)
                 """
-                return ar.static.attenuation.oxygen(frequency, self._T, self._rho)
+                return ar.static.attenuation.oxygen(frequency, self._T, self._P)
 
             @atmosphere
             def water_vapor(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
@@ -693,7 +693,7 @@ class ar(cpu):
             tb_up = atm.upward.brightness_temperature(frequency)
             r = srf.reflectivity(frequency)
             kappa = 1. - r  # emissivity
-            return (srf.surface_temperature + 273.15) * kappa * tau_exp + tb_up + r * tb_down * tau_exp
+            return (srf.temperature + 273.15) * kappa * tau_exp + tb_up + r * tb_down * tau_exp
 
         class multi:
             @staticmethod

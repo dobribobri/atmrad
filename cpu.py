@@ -685,14 +685,14 @@ class ar:
                 self.outer = atmosphere
 
             @atmosphere
-            def oxygen(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
+            def oxygen(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 См. Rec.ITU-R. P.676-3
 
                 :param frequency: частота излучения в ГГц
                 :return: погонный коэффициент поглощения в кислороде (Дб/км)
                 """
-                return ar.static.attenuation.oxygen(frequency, self._T, self._rho)
+                return ar.static.attenuation.oxygen(frequency, self._T, self._P)
 
             @atmosphere
             def water_vapor(self, frequency: float) -> Union[float, Tensor1D_or_3D]:
@@ -918,16 +918,28 @@ class ar:
                 self.__setattr__(name, value)
 
         @property
-        def surface_temperature(self) -> Union[float, Tensor2D]:
+        def temperature(self) -> Union[float, Tensor2D]:
             return self._T
+
+        @temperature.setter
+        def temperature(self, val: Union[float, Tensor2D]):
+            self._T = val
 
         @property
         def zenith_angle(self) -> float:
             return self._theta
 
+        @zenith_angle.setter
+        def zenith_angle(self, val: float):
+            self._theta = val
+
         @property
         def polarization(self) -> str:
             return self._polarization
+
+        @polarization.setter
+        def polarization(self, val: str):
+            self._polarization = val
 
         def reflectivity(self, frequency: float) -> Union[float, Tensor2D]:
             pass
@@ -954,6 +966,10 @@ class ar:
         @property
         def salinity(self) -> Union[float, Tensor2D]:
             return self._Sw
+
+        @salinity.setter
+        def salinity(self, val: Union[float, Tensor2D]):
+            self._Sw = val
 
         def reflectivity(self, frequency: float) -> Union[float, Tensor2D]:
             """
@@ -992,12 +1008,13 @@ class ar:
             :param atm: объект Atmosphere (атмосфера)
             :param srf: объект Surface (поверхность)
             """
-            tau_exp = ar._c.exp(-1 * atm.opacity.summary(frequency))
+            # tau_exp = ar._c.exp(-1 * atm.opacity.summary(frequency))
+            tau_exp = ar._c.exp(-ar._c.integrate.full(dB2np * atm.attenuation.summary(frequency), atm.dh, atm.integration_method))
             tb_down = atm.downward.brightness_temperature(frequency)
             tb_up = atm.upward.brightness_temperature(frequency)
             r = srf.reflectivity(frequency)
             kappa = 1. - r  # emissivity
-            return (srf.surface_temperature + 273.15) * kappa * tau_exp + tb_up + r * tb_down * tau_exp
+            return (srf.temperature + 273.15) * kappa * tau_exp + tb_up + r * tb_down * tau_exp
 
         class multi:
             @staticmethod
