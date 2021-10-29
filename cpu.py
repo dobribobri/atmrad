@@ -3,7 +3,7 @@ from functools import wraps
 from multiprocessing import Manager, Process
 from typing import Union, Tuple, List, Iterable, Callable
 import numpy as np
-# import warnings
+import warnings
 
 from domain import Domain3D
 from cloudforms import CylinderCloud
@@ -41,7 +41,66 @@ def atmospheric(method):
     return wrapper
 
 
+class op_cpu:
+    @staticmethod
+    def rank(a: TensorLike) -> int:
+        return a.ndim
+
+    @staticmethod
+    def sum(a: TensorLike, axis: int = None) -> Union[Number, TensorLike]:
+        return np.sum(a, axis=axis)
+
+    @staticmethod
+    def transpose(a: TensorLike, axes=None) -> TensorLike:
+        return np.transpose(a, axes)
+
+    @staticmethod
+    def len(a: TensorLike) -> int:
+        return a.shape[-1]
+
+    @staticmethod
+    def exp(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+        return np.exp(a)
+
+    @staticmethod
+    def log(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+        return np.log(a)
+
+    @staticmethod
+    def sin(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+        return np.sin(a)
+
+    @staticmethod
+    def cos(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+        return np.cos(a)
+
+    @staticmethod
+    def sqrt(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+        return np.sqrt(a)
+
+    @staticmethod
+    def abs(a: Union[Number, TensorLike]) -> Union[float, TensorLike]:
+        return np.absolute(a)
+
+    @staticmethod
+    def pow(a: Union[Number, TensorLike], d: float) -> Union[float, TensorLike]:
+        return np.power(a, d)
+
+    @staticmethod
+    def as_tensor(a: Union[Number, TensorLike, Iterable[float]]) -> TensorLike:
+        return np.asarray(a, dtype=cpu_float)
+
+    @staticmethod
+    def zeros_like(a: Union[Number, TensorLike, Iterable[float]]) -> TensorLike:
+        return np.zeros_like(a, dtype=cpu_float)
+
+    @staticmethod
+    def complex(real: float, imag: float) -> complex:
+        return np.complex(real, imag)
+
+
 class ar:
+    op = op_cpu
 
     class Domain3D(Domain3D):
         pass
@@ -52,64 +111,12 @@ class ar:
     class Planck(Planck):
         pass
 
-    class _c:
-
-        @staticmethod
-        def rank(a: TensorLike) -> int:
-            return a.ndim
-
-        @staticmethod
-        def sum(a: TensorLike, axis: int = None) -> Union[Number, TensorLike]:
-            return np.sum(a, axis=axis)
-
-        @staticmethod
-        def transpose(a: TensorLike, axes=None) -> TensorLike:
-            return np.transpose(a, axes)
-
-        @staticmethod
-        def len(a: TensorLike) -> int:
-            return a.shape[-1]
-
-        @staticmethod
-        def exp(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
-            return np.exp(a)
-
-        @staticmethod
-        def log(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
-            return np.log(a)
-
-        @staticmethod
-        def sin(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
-            return np.sin(a)
-
-        @staticmethod
-        def cos(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
-            return np.cos(a)
-
-        @staticmethod
-        def sqrt(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
-            return np.sqrt(a)
-
-        @staticmethod
-        def abs(a: Union[Number, TensorLike]) -> Union[float, TensorLike]:
-            return np.absolute(a)
-
-        @staticmethod
-        def pow(a: Union[Number, TensorLike], d: float) -> Union[float, TensorLike]:
-            return np.power(a, d)
-
-        @staticmethod
-        def as_tensor(a: Union[Number, TensorLike, Iterable[float]]) -> TensorLike:
-            return np.asarray(a, dtype=cpu_float)
-
-        @staticmethod
-        def zeros_like(a: Union[Number, TensorLike, Iterable[float]]) -> TensorLike:
-            return np.zeros_like(a, dtype=cpu_float)
+    class c:
 
         class indexer:
             @staticmethod
             def at(a: Tensor1D_or_3D, index: int) -> Union[Number, Tensor2D]:
-                rank = ar._c.rank(a)
+                rank = ar.op.rank(a)
                 if rank not in [1, 3]:
                     raise RuntimeError('неверная размерность')
                 if rank == 3:
@@ -118,60 +125,60 @@ class ar:
 
             @staticmethod
             def last_index(a: TensorLike) -> int:
-                return ar._c.len(a) - 1
+                return ar.op.len(a) - 1
 
         class integrate:
             @staticmethod
             def _trapz(a: Tensor1D_or_3D, lower: int, upper: int,
                        dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
                 if isinstance(dh, float):
-                    return ar._c.sum(a[lower + 1:upper], axis=0) * dh + (a[lower] + a[upper]) / 2. * dh
-                return ar._c.sum(a[lower + 1:upper] * dh[lower + 1:upper], axis=0) + \
+                    return ar.op.sum(a[lower + 1:upper], axis=0) * dh + (a[lower] + a[upper]) / 2. * dh
+                return ar.op.sum(a[lower + 1:upper] * dh[lower + 1:upper], axis=0) + \
                     (a[lower] * dh[lower] + a[upper] * dh[upper]) / 2.
 
             @staticmethod
             def _simpson(a: Tensor1D_or_3D, lower: int, upper: int,
                          dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
                 if isinstance(dh, float):
-                    return (a[lower] + a[upper] + 4 * ar._c.sum(a[lower + 1:upper:2], axis=0) +
-                            2 * ar._c.sum(a[lower + 2:upper:2], axis=0)) * dh / 3.
+                    return (a[lower] + a[upper] + 4 * ar.op.sum(a[lower + 1:upper:2], axis=0) +
+                            2 * ar.op.sum(a[lower + 2:upper:2], axis=0)) * dh / 3.
                 return (a[lower] * dh[lower] + a[upper] * dh[upper] +
-                        4 * ar._c.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
-                        2 * ar._c.sum(a[lower + 2:upper:2] * dh[lower + 2:upper:2], axis=0)) / 3.
+                        4 * ar.op.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
+                        2 * ar.op.sum(a[lower + 2:upper:2] * dh[lower + 2:upper:2], axis=0)) / 3.
 
             @staticmethod
             def _boole(a: Tensor1D_or_3D, lower: int, upper: int,
                        dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
                 if isinstance(dh, float):
-                    return (14 * (a[lower] + a[upper]) + 64 * ar._c.sum(a[lower + 1:upper:2], axis=0) +
-                            24 * ar._c.sum(a[lower + 2:upper:4], axis=0) +
-                            28 * ar._c.sum(a[lower + 4:upper:4], axis=0)) * dh / 45.
+                    return (14 * (a[lower] + a[upper]) + 64 * ar.op.sum(a[lower + 1:upper:2], axis=0) +
+                            24 * ar.op.sum(a[lower + 2:upper:4], axis=0) +
+                            28 * ar.op.sum(a[lower + 4:upper:4], axis=0)) * dh / 45.
                 return (14 * (a[lower] * dh[lower] + a[upper] * dh[upper]) +
-                        64 * ar._c.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
-                        24 * ar._c.sum(a[lower + 2:upper:4] * dh[lower + 2:upper:4], axis=0) +
-                        28 * ar._c.sum(a[lower + 4:upper:4] * dh[lower + 4:upper:4], axis=0)) / 45.
+                        64 * ar.op.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
+                        24 * ar.op.sum(a[lower + 2:upper:4] * dh[lower + 2:upper:4], axis=0) +
+                        28 * ar.op.sum(a[lower + 4:upper:4] * dh[lower + 4:upper:4], axis=0)) / 45.
 
             @staticmethod
             def with_limits(a: Tensor1D_or_3D, lower: int, upper: int,
                             dh: Union[float, Tensor1D], method='trapz') -> Union[Number, Tensor2D]:
                 if method not in ['trapz', 'simpson', 'boole']:
                     raise ValueError('выберите один из доступных методов: \'trapz\', \'simpson\', \'boole\'')
-                rank = ar._c.rank(a)
+                rank = ar.op.rank(a)
                 if rank not in [1, 3]:
                     raise RuntimeError('неверная размерность. Только 1D- и 3D-массивы')
                 if rank == 3:
-                    a = ar._c.transpose(a, [2, 0, 1])
+                    a = ar.op.transpose(a, [2, 0, 1])
                 if method == 'trapz':
-                    a = ar._c.integrate._trapz(a, lower, upper, dh)
+                    a = ar.c.integrate._trapz(a, lower, upper, dh)
                 if method == 'simpson':
-                    a = ar._c.integrate._simpson(a, lower, upper, dh)
+                    a = ar.c.integrate._simpson(a, lower, upper, dh)
                 if method == 'boole':
-                    a = ar._c.integrate._boole(a, lower, upper, dh)
+                    a = ar.c.integrate._boole(a, lower, upper, dh)
                 return a
 
             @staticmethod
             def full(a: Tensor1D_or_3D, dh: Union[float, Tensor1D], method='trapz') -> Union[Number, Tensor2D]:
-                return ar._c.integrate.with_limits(a, 0, ar._c.indexer.last_index(a), dh, method)
+                return ar.c.integrate.with_limits(a, 0, ar.c.indexer.last_index(a), dh, method)
 
             @staticmethod
             def callable(f: Callable, lower: int, upper: int,
@@ -207,9 +214,10 @@ class ar:
                     out = manager.list()
                     processes = []
                     for i, f in enumerate(frequencies):
-                        p = Process(target=out.append, args=((i, func(f, *args)),))
+                        p = Process(target=out.append, args=((i, func(f, *args)),))     # TBD
+                        # p = Process(target=lambda _out, _i, _f: _out.append((i, func(f, *args))), args=(out, i, f,))
                         processes.append(p)
-                    ar._c.multi.do(processes, n_workers)
+                    ar.c.multi.do(processes, n_workers)
                     out = list(out)
                 return np.asarray([val for _, val in sorted(out, key=lambda item: item[0])], dtype=object)
 
@@ -232,7 +240,7 @@ class ar:
                     """
                     epsO_nosalt = 5.5
                     epsS_nosalt = 88.2 - 0.40885 * T + 0.00081 * T * T
-                    lambdaS_nosalt = 1.8735116 - 0.027296 * T + 0.000136 * T * T + 1.662 * ar._c.exp(-0.0634 * T)
+                    lambdaS_nosalt = 1.8735116 - 0.027296 * T + 0.000136 * T * T + 1.662 * ar.op.exp(-0.0634 * T)
                     epsO = epsO_nosalt
                     epsS = epsS_nosalt - 17.2 * Sw / 60
                     lambdaS = lambdaS_nosalt - 0.206 * Sw / 60
@@ -255,7 +263,7 @@ class ar:
                     eps2 = y * (epsS - epsO) / (1 + y * y)
                     sigma = 0.00001 * (2.63 * T + 77.5) * Sw
                     eps2 = eps2 + 60 * sigma * lamda
-                    return eps1 - 1j * eps2
+                    return ar.op.complex(eps1, -eps2)
 
             class Fresnel:
                 """
@@ -272,15 +280,15 @@ class ar:
                     :param Sw: соленость, промили
                     """
                     epsilon = ar.static.water.dielectric.epsilon_complex(frequency, T, Sw)
-                    cos = ar._c.sqrt(epsilon - ar._c.cos(psi) * ar._c.cos(psi))
-                    return (ar._c.sin(psi) - cos) / (ar._c.sin(psi) + cos)
+                    cos = ar.op.sqrt(epsilon - ar.op.cos(psi) * ar.op.cos(psi))
+                    return (ar.op.sin(psi) - cos) / (ar.op.sin(psi) + cos)
 
                 @staticmethod
                 def M_vertical(frequency: float, psi: float, T: Union[float, Tensor2D],
                                Sw: Union[float, Tensor2D] = 0.) -> Union[Number, Tensor2D]:
                     epsilon = ar.static.water.dielectric.epsilon_complex(frequency, T, Sw)
-                    cos = ar._c.sqrt(epsilon - ar._c.cos(psi) * ar._c.cos(psi))
-                    return (epsilon * ar._c.sin(psi) - cos) / (epsilon * ar._c.sin(psi) + cos)
+                    cos = ar.op.sqrt(epsilon - ar.op.cos(psi) * ar.op.cos(psi))
+                    return (epsilon * ar.op.sin(psi) - cos) / (epsilon * ar.op.sin(psi) + cos)
 
                 @staticmethod
                 def R_horizontal(frequency: float, theta: float, T: Union[float, Tensor2D],
@@ -293,7 +301,7 @@ class ar:
                     :return: коэффициент отражения на горизонтальной поляризации
                     """
                     M_h = ar.static.water.Fresnel.M_horizontal(frequency, np.pi / 2. - theta, T, Sw)
-                    val = ar._c.abs(M_h)
+                    val = ar.op.abs(M_h)
                     return val * val
 
                 @staticmethod
@@ -307,7 +315,7 @@ class ar:
                     :return: коэффициент отражения на вертикальной поляризации
                     """
                     M_v = ar.static.water.Fresnel.M_vertical(frequency, np.pi / 2. - theta, T, Sw)
-                    val = ar._c.abs(M_v)
+                    val = ar.op.abs(M_v)
                     return val * val
 
                 @staticmethod
@@ -320,7 +328,7 @@ class ar:
                     :return: коэффициент отражения при зенитном угле 0 рад
                     """
                     epsilon = ar.static.water.dielectric.epsilon_complex(frequency, T, Sw)
-                    val = ar._c.abs((ar._c.sqrt(epsilon) - 1) / (ar._c.sqrt(epsilon) + 1))
+                    val = ar.op.abs((ar.op.sqrt(epsilon) - 1) / (ar.op.sqrt(epsilon) + 1))
                     return val * val
 
         class p676:
@@ -366,20 +374,20 @@ class ar:
                 """
                 rp = P / 1013
                 rt = 288 / (273 + T)
-                f = frequency
+                f = ar.op.as_tensor(frequency)
                 gamma = 0
                 if f <= 57:
                     gamma = (7.27 * rt / (f * f + 0.351 * rp * rp * rt * rt) +
                              7.5 / ((f - 57) * (f - 57) + 2.44 * rp * rp * rt * rt * rt * rt * rt)) * \
                             f * f * rp * rp * rt * rt / 1000
                 elif 63 <= f <= 350:
-                    gamma = (2 / 10000 * ar._c.pow(rt, 1.5) * (1 - 1.2 / 100000 * ar._c.pow(f, 1.5)) +
+                    gamma = (2 / 10000 * ar.op.pow(rt, 1.5) * (1 - 1.2 / 100000 * ar.op.pow(f, 1.5)) +
                              4 / ((f - 63) * (f - 63) + 1.5 * rp * rp * rt * rt * rt * rt * rt) +
                              0.28 * rt * rt / ((f - 118.75) * (f - 118.75) + 2.84 * rp * rp * rt * rt)) * \
                             f * f * rp * rp * rt * rt / 1000
                 elif 57 < f < 63:
                     gamma = (f - 60) * (f - 63) / 18 * ar.static.p676.gamma_oxygen(57., T, P) - \
-                            1.66 * rp * rp * ar._c.pow(rt, 8.5) * (f - 57) * (f - 63) + \
+                            1.66 * rp * rp * ar.op.pow(rt, 8.5) * (f - 57) * (f - 63) + \
                             (f - 57) * (f - 60) / 18 * ar.static.p676.gamma_oxygen(63., T, P)
                 return gamma
 
@@ -396,12 +404,12 @@ class ar:
                 """
                 rp = P / 1013
                 rt = 288 / (273 + T)
-                f = frequency
+                f = ar.op.as_tensor(frequency)
                 gamma = 0
                 if f <= 350:
                     gamma = (3.27 / 100 * rt +
                              1.67 / 1000 * rho * rt * rt * rt * rt * rt * rt * rt / rp +
-                             7.7 / 10000 * ar._c.pow(f, 0.5) +
+                             7.7 / 10000 * ar.op.pow(f, 0.5) +
                              3.79 / ((f - 22.235) * (f - 22.235) + 9.81 * rp * rp * rt) +
                              11.73 * rt / ((f - 183.31) * (f - 183.31) + 11.85 * rp * rp * rt) +
                              4.01 * rt / ((f - 325.153) * (f - 325.153) + 10.44 * rp * rp * rt)) * \
@@ -423,7 +431,7 @@ class ar:
                 :return: полное поглощение в кислороде (оптическая толщина). В неперах
                 """
                 gamma = ar.static.p676.gamma_oxygen(frequency, T_near_ground, P_near_ground)
-                return gamma * ar.static.p676.H1(frequency) / ar._c.cos(theta) * dB2np
+                return gamma * ar.static.p676.H1(frequency) / ar.op.cos(theta) * dB2np
 
             @staticmethod
             def tau_water_vapor_near_ground(frequency: float,
@@ -443,7 +451,7 @@ class ar:
                 :return: полное поглощение в водяном паре. В неперах
                 """
                 gamma = ar.static.p676.gamma_water_vapor(frequency, T_near_ground, P_near_ground, rho_near_ground)
-                return gamma * ar.static.p676.H2(frequency, rainQ=rainQ) / ar._c.cos(theta) * dB2np
+                return gamma * ar.static.p676.H2(frequency, rainQ=rainQ) / ar.op.cos(theta) * dB2np
 
         class attenuation:
             """
@@ -669,16 +677,16 @@ class ar:
                     temperature.append(T47)
                 else:
                     temperature.append(T47)
-            temperature = ar._c.as_tensor(temperature)
+            temperature = ar.op.as_tensor(temperature)
 
             pressure = [P0 * np.exp(-h / HP) for h in altitudes]
-            pressure = ar._c.as_tensor(pressure)
+            pressure = ar.op.as_tensor(pressure)
 
             abs_humidity = [rho0 * np.exp(-h / Hrho) for h in altitudes]
-            abs_humidity = ar._c.as_tensor(abs_humidity)
+            abs_humidity = ar.op.as_tensor(abs_humidity)
 
             return cls(temperature, pressure, abs_humidity,
-                       LiquidWater=ar._c.zeros_like(abs_humidity), dh=dh)
+                       LiquidWater=ar.op.zeros_like(abs_humidity), dh=dh)
 
         # noinspection PyTypeChecker
         class attenuation:
@@ -740,32 +748,32 @@ class ar:
                 """
                 :return: полное поглощение в кислороде (путем интегрирования погонного коэффициента). В неперах
                 """
-                return dB2np * ar._c.integrate.full(self.attenuation.oxygen(frequency),
-                                                    self._dh, self.integration_method)
+                return dB2np * ar.c.integrate.full(self.attenuation.oxygen(frequency),
+                                                   self._dh, self.integration_method)
 
             @atmospheric
             def water_vapor(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в водяном паре (путем интегрирования погонного коэффициента). В неперах
                 """
-                return dB2np * ar._c.integrate.full(self.attenuation.water_vapor(frequency),
-                                                    self._dh, self.integration_method)
+                return dB2np * ar.c.integrate.full(self.attenuation.water_vapor(frequency),
+                                                   self._dh, self.integration_method)
 
             @atmospheric
             def liquid_water(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в облаке (путем интегрирования погонного коэффициента). В неперах
                 """
-                return dB2np * ar._c.integrate.full(self.attenuation.liquid_water(frequency),
-                                                    self._dh, self.integration_method)
+                return dB2np * ar.c.integrate.full(self.attenuation.liquid_water(frequency),
+                                                   self._dh, self.integration_method)
 
             @atmospheric
             def summary(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в атмосфере (путем интегрирования). В неперах
                 """
-                return dB2np * ar._c.integrate.full(self.attenuation.summary(frequency),
-                                                    self._dh, self.integration_method)
+                return dB2np * ar.c.integrate.full(self.attenuation.summary(frequency),
+                                                   self._dh, self.integration_method)
 
         class downward:
             """
@@ -783,10 +791,10 @@ class ar:
                 """
                 g = dB2np * self.attenuation.summary(frequency)
                 T = self._T + 273.15
-                f = lambda h: ar._c.indexer.at(T, h) * ar._c.indexer.at(g, h) * \
-                    ar._c.exp(-1 * ar._c.integrate.with_limits(g, 0, h, self._dh, self.integration_method))
-                inf = ar._c.indexer.last_index(g)
-                return ar._c.integrate.callable(f, 0, inf, self._dh)
+                f = lambda h: ar.c.indexer.at(T, h) * ar.c.indexer.at(g, h) * \
+                    ar.op.exp(-1 * ar.c.integrate.with_limits(g, 0, h, self._dh, self.integration_method))
+                inf = ar.c.indexer.last_index(g)
+                return ar.c.integrate.callable(f, 0, inf, self._dh)
 
             def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
@@ -796,10 +804,11 @@ class ar:
                 :param frequencies: список частот в ГГц
                 :param n_workers: количество потоков для распараллеливания
                 """
-
-                return ar._c.multi.parallel(frequencies,
-                                            func=self.downward.brightness_temperature,
-                                            args=(), n_workers=n_workers)
+                if self.use_storage:
+                    warnings.warn('storage не может быть использован')
+                return ar.c.multi.parallel(frequencies,
+                                           func=self.downward.brightness_temperature,
+                                           args=(), n_workers=n_workers)
 
         class upward:
             """
@@ -816,11 +825,11 @@ class ar:
                 :param frequency: частота излучения в ГГц
                 """
                 g = dB2np * self.attenuation.summary(frequency)
-                inf = ar._c.indexer.last_index(g)
+                inf = ar.c.indexer.last_index(g)
                 T = self._T + 273.15
-                f = lambda h: ar._c.indexer.at(T, h) * ar._c.indexer.at(g, h) * \
-                    ar._c.exp(-1 * ar._c.integrate.with_limits(g, h, inf, self._dh, self.integration_method))
-                return ar._c.integrate.callable(f, 0, inf, self._dh)
+                f = lambda h: ar.c.indexer.at(T, h) * ar.c.indexer.at(g, h) * \
+                    ar.op.exp(-1 * ar.c.integrate.with_limits(g, h, inf, self._dh, self.integration_method))
+                return ar.c.integrate.callable(f, 0, inf, self._dh)
 
             def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
@@ -830,10 +839,11 @@ class ar:
                 :param frequencies: список частот в ГГц
                 :param n_workers: количество потоков для распараллеливания
                 """
-
-                return ar._c.multi.parallel(frequencies,
-                                            func=self.upward.brightness_temperature,
-                                            args=(), n_workers=n_workers)
+                if self.use_storage:
+                    warnings.warn('storage не может быть использован')
+                return ar.c.multi.parallel(frequencies,
+                                           func=self.upward.brightness_temperature,
+                                           args=(), n_workers=n_workers)
 
     # noinspection PyArgumentList
     class weight_functions:
@@ -848,7 +858,7 @@ class ar:
             :return: весовая функция krho (водяной пар)
             """
             tau_water_vapor = sa.opacity.water_vapor(frequency)
-            return tau_water_vapor / (ar._c.integrate.full(sa.absolute_humidity, sa.dh) / 10.)
+            return tau_water_vapor / (ar.c.integrate.full(sa.absolute_humidity, sa.dh) / 10.)
 
         @staticmethod
         def kw_(frequency: float, t_cloud: float) -> float:
@@ -896,7 +906,7 @@ class ar:
                 :param sa: стандартная атмосфера (объект Atmosphere)
                 """
                 tb_down = sa.downward.brightness_temperature(frequency)
-                tau_exp = ar._c.exp(-1 * sa.opacity.summary(frequency))
+                tau_exp = ar.op.exp(-1 * sa.opacity.summary(frequency))
                 return tb_down / (1. - tau_exp)
 
         # noinspection PyArgumentList
@@ -910,7 +920,7 @@ class ar:
                 :param sa: стандартная атмосфера (объект Atmosphere)
                 """
                 tb_up = sa.upward.brightness_temperature(frequency)
-                tau_exp = ar._c.exp(-1 * sa.opacity.summary(frequency))
+                tau_exp = ar.op.exp(-1 * sa.opacity.summary(frequency))
                 return tb_up / (1. - tau_exp)
 
     class Surface:
@@ -1014,7 +1024,7 @@ class ar:
             :param atm: объект Atmosphere (атмосфера)
             :param srf: объект Surface (поверхность)
             """
-            tau_exp = ar._c.exp(-1 * atm.opacity.summary(frequency))
+            tau_exp = ar.op.exp(-1 * atm.opacity.summary(frequency))
             tb_down = atm.downward.brightness_temperature(frequency)
             tb_up = atm.upward.brightness_temperature(frequency)
             r = srf.reflectivity(frequency)
@@ -1033,10 +1043,11 @@ class ar:
                 :param srf: объект Surface (поверхность)
                 :param n_workers: количество потоков для распараллеливания
                 """
-
-                return ar._c.multi.parallel(frequencies,
-                                            func=ar.satellite.brightness_temperature,
-                                            args=(atm, srf,), n_workers=n_workers)
+                if atm.use_storage:
+                    warnings.warn('storage не может быть использован')
+                return ar.c.multi.parallel(frequencies,
+                                           func=ar.satellite.brightness_temperature,
+                                           args=(atm, srf,), n_workers=n_workers)
 
     class inverse:
         pass

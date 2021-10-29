@@ -1,6 +1,6 @@
 
-from cpu import ar
-# from gpu import ar
+# from cpu import ar
+from gpu import ar
 
 import numpy as np
 import time
@@ -85,4 +85,4 @@ def ex4():
 
 if __name__ == '__main__':
 
-    ex3()
+    ex1()
