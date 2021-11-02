@@ -91,12 +91,24 @@ class op_cpu:
         return np.asarray(a, dtype=cpu_float)
 
     @staticmethod
+    def as_variable(a: Union[Number, TensorLike]) -> TensorLike:
+        return a
+
+    @staticmethod
+    def zeros(shape: Union[int, Iterable[int], Tuple[int]]) -> TensorLike:
+        return np.zeros(shape, dtype=cpu_float)
+
+    @staticmethod
     def zeros_like(a: Union[Number, TensorLike, Iterable[float]]) -> TensorLike:
         return np.zeros_like(a, dtype=cpu_float)
 
     @staticmethod
     def complex(real: float, imag: float) -> complex:
         return np.complex(real, imag)
+
+    @staticmethod
+    def round(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+        return np.round(a)
 
 
 class ar:
@@ -115,7 +127,9 @@ class ar:
 
         class indexer:
             @staticmethod
-            def at(a: Tensor1D_or_3D, index: int) -> Union[Number, Tensor2D]:
+            def at(a: Union[float, Tensor1D_or_3D], index: int) -> Union[Number, Tensor2D]:
+                if isinstance(a, float):
+                    return a
                 rank = ar.op.rank(a)
                 if rank not in [1, 3]:
                     raise RuntimeError('неверная размерность')
@@ -124,61 +138,113 @@ class ar:
                 return a[index]
 
             @staticmethod
+            def diap(a: Union[float, Tensor1D_or_3D], start: int, stop: int,
+                     step: int = 1) -> Union[Number, TensorLike]:
+                if isinstance(a, float):
+                    return a
+                rank = ar.op.rank(a)
+                if rank not in [1, 3]:
+                    raise RuntimeError('неверная размерность')
+                if rank == 3:
+                    return a[:, :, start:stop:step]
+                return a[start:stop:step]
+
+            @staticmethod
             def last_index(a: TensorLike) -> int:
                 return ar.op.len(a) - 1
 
         class integrate:
             @staticmethod
-            def _trapz(a: Tensor1D_or_3D, lower: int, upper: int,
-                       dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
-                if isinstance(dh, float):
-                    return ar.op.sum(a[lower + 1:upper], axis=0) * dh + (a[lower] + a[upper]) / 2. * dh
-                return ar.op.sum(a[lower + 1:upper] * dh[lower + 1:upper], axis=0) + \
-                    (a[lower] * dh[lower] + a[upper] * dh[upper]) / 2.
+            def trapz(a: Tensor1D_or_3D, lower: int, upper: int,
+                      dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
+                return ar.op.sum(ar.c.indexer.diap(a, lower+1, upper) *
+                                 ar.c.indexer.diap(dh, lower+1, upper), axis=-1) + \
+                       (ar.c.indexer.at(a, lower) * ar.c.indexer.at(dh, lower) +
+                        ar.c.indexer.at(a, upper) * ar.c.indexer.at(dh, upper)) / 2.
 
             @staticmethod
-            def _simpson(a: Tensor1D_or_3D, lower: int, upper: int,
-                         dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
-                if isinstance(dh, float):
-                    return (a[lower] + a[upper] + 4 * ar.op.sum(a[lower + 1:upper:2], axis=0) +
-                            2 * ar.op.sum(a[lower + 2:upper:2], axis=0)) * dh / 3.
-                return (a[lower] * dh[lower] + a[upper] * dh[upper] +
-                        4 * ar.op.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
-                        2 * ar.op.sum(a[lower + 2:upper:2] * dh[lower + 2:upper:2], axis=0)) / 3.
+            def simpson(a: Tensor1D_or_3D, lower: int, upper: int,
+                        dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
+                pass
+                # if isinstance(dh, float):
+                #     return (a[lower] + a[upper] + 4 * ar.op.sum(a[lower + 1:upper:2], axis=0) +
+                #             2 * ar.op.sum(a[lower + 2:upper:2], axis=0)) * dh / 3.
+                # return (a[lower] * dh[lower] + a[upper] * dh[upper] +
+                #         4 * ar.op.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
+                #         2 * ar.op.sum(a[lower + 2:upper:2] * dh[lower + 2:upper:2], axis=0)) / 3.
 
             @staticmethod
-            def _boole(a: Tensor1D_or_3D, lower: int, upper: int,
-                       dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
-                if isinstance(dh, float):
-                    return (14 * (a[lower] + a[upper]) + 64 * ar.op.sum(a[lower + 1:upper:2], axis=0) +
-                            24 * ar.op.sum(a[lower + 2:upper:4], axis=0) +
-                            28 * ar.op.sum(a[lower + 4:upper:4], axis=0)) * dh / 45.
-                return (14 * (a[lower] * dh[lower] + a[upper] * dh[upper]) +
-                        64 * ar.op.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
-                        24 * ar.op.sum(a[lower + 2:upper:4] * dh[lower + 2:upper:4], axis=0) +
-                        28 * ar.op.sum(a[lower + 4:upper:4] * dh[lower + 4:upper:4], axis=0)) / 45.
+            def boole(a: Tensor1D_or_3D, lower: int, upper: int,
+                      dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
+                pass
+                # if isinstance(dh, float):
+                #     return (14 * (a[lower] + a[upper]) + 64 * ar.op.sum(a[lower + 1:upper:2], axis=0) +
+                #             24 * ar.op.sum(a[lower + 2:upper:4], axis=0) +
+                #             28 * ar.op.sum(a[lower + 4:upper:4], axis=0)) * dh / 45.
+                # return (14 * (a[lower] * dh[lower] + a[upper] * dh[upper]) +
+                #         64 * ar.op.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
+                #         24 * ar.op.sum(a[lower + 2:upper:4] * dh[lower + 2:upper:4], axis=0) +
+                #         28 * ar.op.sum(a[lower + 4:upper:4] * dh[lower + 4:upper:4], axis=0)) / 45.
 
             @staticmethod
-            def with_limits(a: Tensor1D_or_3D, lower: int, upper: int,
-                            dh: Union[float, Tensor1D], method='trapz') -> Union[Number, Tensor2D]:
-                if method not in ['trapz', 'simpson', 'boole']:
-                    raise ValueError('выберите один из доступных методов: \'trapz\', \'simpson\', \'boole\'')
-                rank = ar.op.rank(a)
-                if rank not in [1, 3]:
-                    raise RuntimeError('неверная размерность. Только 1D- и 3D-массивы')
-                if rank == 3:
-                    a = ar.op.transpose(a, [2, 0, 1])
-                if method == 'trapz':
-                    a = ar.c.integrate._trapz(a, lower, upper, dh)
-                if method == 'simpson':
-                    a = ar.c.integrate._simpson(a, lower, upper, dh)
-                if method == 'boole':
-                    a = ar.c.integrate._boole(a, lower, upper, dh)
+            def limits(a: Tensor1D_or_3D, lower: int, upper: int,
+                       dh: Union[float, Tensor1D], method='trapz') -> Union[Number, Tensor2D]:
+                if method.lower() == 'trapz':
+                    a = ar.c.integrate.trapz(a, lower, upper, dh)
+                elif method.lower() == 'simpson':
+                    a = ar.c.integrate.simpson(a, lower, upper, dh)
+                else:  # boole
+                    a = ar.c.integrate.boole(a, lower, upper, dh)
                 return a
 
             @staticmethod
             def full(a: Tensor1D_or_3D, dh: Union[float, Tensor1D], method='trapz') -> Union[Number, Tensor2D]:
-                return ar.c.integrate.with_limits(a, 0, ar.c.indexer.last_index(a), dh, method)
+                return ar.c.integrate.limits(a, 0, ar.c.indexer.last_index(a), dh, method)
+
+            @staticmethod
+            def slant(a: Tensor1D_or_3D, lower: int, upper: int,
+                      dh: Union[float, Tensor1D] = 10./500, PX: float = 50.,
+                      theta: float = 0., method='trapz',
+                      mode='valid') -> Union[Number, Tensor2D]:
+                if np.isclose(theta, 0.):
+                    return ar.c.integrate.full(a, dh, method)
+                rank = ar.op.rank(a)
+                if rank == 1:
+                    return ar.c.integrate.full(a, dh, method) / ar.op.cos(theta)
+                elif rank == 3:
+                    Ix, Iy, Iz = a.shape
+                    dh = np.asarray(dh)
+                    dz = dh / np.cos(theta)
+                    dx = dz * np.sin(theta)
+                    di = Ix * dx / PX
+                    if isinstance(dh, float):
+                        full_shift = int(np.round(di * (Iz - 1), decimals=0))
+                        b = ar.op.as_variable(ar.op.zeros((Ix + full_shift, Iy, Iz)))
+                        if isinstance(b, np.ndarray):
+                            for k, z in enumerate(range(Iz - 1, -1, -1)):
+                                shift = int(np.round(k * di, decimals=0))
+                                b[shift:shift + Ix, :, z] = a[:, :, z]
+                        else:
+                            for k, z in enumerate(range(Iz - 1, -1, -1)):
+                                shift = int(np.round(k * di, decimals=0))
+                                b[shift:shift + Ix, :, z].assign(a[:, :, z])
+                    else:
+                        assert len(di) == Iz, 'размер должен совпадать'
+                        full_shift = int(np.round(np.sum(di), decimals=0))
+                        b = ar.op.as_variable(ar.op.zeros((Ix + full_shift, Iy, Iz)))
+                        if isinstance(b, np.ndarray):
+                            for z in range(Iz - 1, -1, -1):
+                                shift = int(np.round(np.sum(di[z:])))
+                                b[shift:shift + Ix, :, z] = a[:, :, z]
+                        else:
+                            for z in range(Iz - 1, -1, -1):
+                                shift = int(np.round(np.sum(di[z:])))
+                                b[shift:shift + Ix, :, z].assign(a[:, :, z])
+                    integral = ar.c.integrate.limits(ar.op.as_tensor(b), lower, upper, dz, method)
+                    if mode.lower() == 'valid':
+                        return integral
+                    return integral[full_shift // 2:full_shift // 2 + Ix, :]  # mode 'same'
+                raise RuntimeError('неверная размерность. Только 1D- и 3D-массивы')
 
             @staticmethod
             def callable(f: Callable, lower: int, upper: int,
@@ -330,6 +396,86 @@ class ar:
                     epsilon = ar.static.water.dielectric.epsilon_complex(frequency, T, Sw)
                     val = ar.op.abs((ar.op.sqrt(epsilon) - 1) / (ar.op.sqrt(epsilon) + 1))
                     return val * val
+
+            class vapor:
+                """
+                Водяной пар
+                """
+                @staticmethod
+                def pressure(T: Union[float, TensorLike], rho: Union[float, TensorLike]) -> Union[float, TensorLike]:
+                    """
+                    Парциальное давление водяного пара
+
+                    :param rho: плотность водяного пара (абсолютная влажность), г/м^3
+                    :param T: температура воздуха, град. Цельс.
+                    :return: давление в гПа
+                    """
+                    return rho * (T + 273.15) / 216.7
+
+                @staticmethod
+                def relative_humidity(T: Union[float, TensorLike], P: Union[float, TensorLike],
+                                      rho: Union[float, TensorLike], method='wmo2008') -> Union[float, TensorLike]:
+                    """
+                    Расчет относительной влажности по абсолютной
+
+                    :param T: температура воздуха, град. Цельс.
+                    :param P: барометрическое давление, гПа
+                    :param rho: абсолютная влажность, г/м^3
+                    :param method: метод расчета давления насыщенного водяного пара
+                        ('wmo2008', 'august-roche-magnus', 'tetens', 'august', 'buck')
+                    :return: %
+                    """
+                    return ar.static.water.vapor.pressure(T, rho) / \
+                        ar.static.water.vapor.saturated.pressure(T, P, method) * 100
+
+                @staticmethod
+                def absolute_humidity(T: Union[float, TensorLike], P: Union[float, TensorLike],
+                                      rel: Union[float, TensorLike], method='wmo2008') -> Union[float, TensorLike]:
+                    """
+                    Расчет абсолютной влажности по относительной
+
+                    :param T: температура воздуха, град. Цельс.
+                    :param P: барометрическое давление, гПа
+                    :param rel: относительная влажность, %
+                    :param method: метод расчета давления насыщенного водяного пара
+                        ('wmo2008', 'august-roche-magnus', 'tetens', 'august', 'buck')
+                    :return: г/м^3
+                    """
+                    return (rel / 100) * 216.7 * ar.static.water.vapor.saturated.pressure(T, P, method) / \
+                        (T + 273.15)
+
+                class saturated:
+                    """
+                    Насыщенный водяной пар
+                    """
+                    @staticmethod
+                    def pressure(T: Union[float, TensorLike], P: Union[float, TensorLike] = None,
+                                 method='wmo2008') -> Union[float, TensorLike]:
+                        """
+                        Давление насыщенного водяного пара во влажном воздухе
+
+                        :param T: температура воздуха, град. Цельс.
+                        :param P: барометрическое давление, гПа
+                        :param method: метод аппроксимации ('wmo2008', 'august-roche-magnus',
+                            'tetens', 'august', 'buck')
+                        :return: давление в гПа
+                        """
+                        if method.lower() == 'august-roche-magnus':
+                            e = 0.61094 * ar.op.exp(17.625 * T / (243.04 + T)) * 10
+                        elif method.lower() == 'tetens':
+                            e = 0.61078 * ar.op.exp(17.27 * T / (T + 237.3)) * 10
+                        elif method.lower() == 'august':
+                            e = ar.op.exp(20.386 - 5132 / (T + 273.15)) * 1.333
+                        elif method.lower() == 'buck':
+                            if T > 0:
+                                e = 6.1121 * ar.op.exp((18.678 - T / 234.5) * (T / (257.14 + T)))
+                            else:
+                                e = 6.1115 * ar.op.exp((23.036 - T / 333.7) * (T / (279.82 + T)))
+                        else:
+                            e = 6.112 * ar.op.exp(17.62 * T / (243.12 + T))
+                        if P is None:
+                            return e
+                        return (1.0016 + 3.15 * 0.000001 * P - 0.074 / P) * e
 
         class p676:
             """
@@ -500,19 +646,26 @@ class ar:
 
     class Atmosphere:
 
-        def __init__(self, Temperature: Tensor1D_or_3D, Pressure: Tensor1D_or_3D, AbsoluteHumidity: Tensor1D_or_3D,
+        def __init__(self, Temperature: Tensor1D_or_3D, Pressure: Tensor1D_or_3D,
+                     AbsoluteHumidity: Tensor1D_or_3D = None, RelativeHumidity: Tensor1D_or_3D = None,
                      LiquidWater: Tensor1D_or_3D = None, altitudes: np.ndarray = None, dh: float = None, **kwargs):
             """
             Модель собственного радиотеплового излучения атмосферы Земли
 
             :param Temperature: термодинамическая температура (высотный 1D-профиль или 3D-поле), град. Цельс.
             :param Pressure: атмосферное давление (1D или 3D), гПа
-            :param AbsoluteHumidity: абсолютная влажность (1D или 3D), г/м^3
-            :param LiquidWater: 1D-профиль или 3D-поле водности (3D), кг/м^3
-            :param altitudes: соответствующие высоты (1D массив), км. Может быть None, если указан параметр dh
-            :param dh: постоянный шаг по высоте, км. Может быть None, если указаны altitudes
+            :param AbsoluteHumidity: абсолютная влажность (1D или 3D), г/м^3. Параметр может быть не указан,
+                если указан RelativeHumidity
+            :param RelativeHumidity: относительная влажность (1D или 3D), %. Параметр может быть не указан,
+                если указан AbsoluteHumidity
+            :param LiquidWater: 1D-профиль или 3D-поле водности, кг/м^3. Параметр может быть не указан.
+            :param altitudes: соответствующие высоты (1D массив), км. Может быть не указан, если указан параметр dh
+            :param dh: постоянный шаг по высоте, км. Может быть не указан, если указаны altitudes
             """
-            self._T, self._P, self._rho = Temperature, Pressure, AbsoluteHumidity
+            self._T, self._P = Temperature, Pressure
+            if AbsoluteHumidity is None:
+                AbsoluteHumidity = ar.static.water.vapor.absolute_humidity(self._T, self._P, RelativeHumidity)
+            self._rho = AbsoluteHumidity
             assert self._T.shape == self._P.shape == self._rho.shape, 'размерность должна совпадать'
             if altitudes is None and dh is None:
                 raise ValueError('пожалуйста, задайте altitudes, либо dh')
@@ -527,6 +680,7 @@ class ar:
                 self._alt = altitudes
             self._w = LiquidWater
             self._tcl = -2  # по Цельсию
+            self._theta = 0.  # угол наблюдения в радианах
             self.integration_method = 'trapz'
             self.storage: dict = {}
             self.use_storage = True
@@ -599,6 +753,14 @@ class ar:
             self.refresh(affected)
 
         @property
+        def relative_humidity(self) -> Tensor1D_or_3D:
+            return ar.static.water.vapor.relative_humidity(self._T, self._P, self._rho)
+
+        @relative_humidity.setter
+        def relative_humidity(self, val: Tensor1D_or_3D):
+            self.absolute_humidity = ar.static.water.vapor.absolute_humidity(self._T, self._P, val)
+
+        @property
         def liquid_water(self) -> Tensor1D_or_3D:
             return self._w
 
@@ -639,6 +801,14 @@ class ar:
         @effective_cloud_temperature.setter
         def effective_cloud_temperature(self, value: float):
             self._tcl = value
+
+        @property
+        def zenith_angle(self) -> float:
+            return self._theta
+
+        @zenith_angle.setter
+        def zenith_angle(self, val: float):
+            self._theta = val
 
         @classmethod
         def Standard(cls, T0: float = 15., P0: float = 1013, rho0: float = 7.5,
@@ -792,7 +962,7 @@ class ar:
                 g = dB2np * self.attenuation.summary(frequency)
                 T = self._T + 273.15
                 f = lambda h: ar.c.indexer.at(T, h) * ar.c.indexer.at(g, h) * \
-                    ar.op.exp(-1 * ar.c.integrate.with_limits(g, 0, h, self._dh, self.integration_method))
+                    ar.op.exp(-1 * ar.c.integrate.limits(g, 0, h, self._dh, self.integration_method))
                 inf = ar.c.indexer.last_index(g)
                 return ar.c.integrate.callable(f, 0, inf, self._dh)
 
@@ -828,7 +998,7 @@ class ar:
                 inf = ar.c.indexer.last_index(g)
                 T = self._T + 273.15
                 f = lambda h: ar.c.indexer.at(T, h) * ar.c.indexer.at(g, h) * \
-                    ar.op.exp(-1 * ar.c.integrate.with_limits(g, h, inf, self._dh, self.integration_method))
+                    ar.op.exp(-1 * ar.c.integrate.limits(g, h, inf, self._dh, self.integration_method))
                 return ar.c.integrate.callable(f, 0, inf, self._dh)
 
             def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],

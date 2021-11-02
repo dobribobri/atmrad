@@ -83,6 +83,10 @@ def ex4():
     # print(ar.Atmosphere.attenuation.oxygen(atmosphere, 37.5))
 
 
+def ex5():
+    pass
+
+
 if __name__ == '__main__':
 
     ex1()

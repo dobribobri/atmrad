@@ -65,12 +65,24 @@ class op_gpu(op_cpu):
         return tf.cast(tf.convert_to_tensor(a), dtype=gpu_float)
 
     @staticmethod
+    def as_variable(a: Union[Number, TensorLike]) -> tf.Variable:
+        return tf.Variable(a)
+
+    @staticmethod
+    def zeros(shape: Union[int, Iterable[int], Tuple[int]]) -> TensorLike:
+        return tf.zeros(shape, dtype=gpu_float)
+
+    @staticmethod
     def zeros_like(a: Union[Number, TensorLike, Iterable[float]]) -> TensorLike:
         return tf.zeros_like(a, dtype=gpu_float)
 
     @staticmethod
     def complex(real: float, imag: float) -> complex:
         return tf.complex(real, imag)
+
+    @staticmethod
+    def round(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+        return tf.round(a)
 
 
 class ar(cpu):
