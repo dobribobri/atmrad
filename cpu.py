@@ -29,16 +29,37 @@ np2dB = 1. / dB2np
 
 def atmospheric(method):
     @wraps(method)
-    def wrapper(obj: 'ar.Atmosphere', frequency: float) -> Union[Number, TensorLike]:
-        key = (frequency, method.__qualname__)
+    def wrapper(obj: 'ar.Atmosphere', *args, **kwargs):
         if hasattr(obj, 'outer'):
             obj = obj.outer
+        return method(obj, *args, **kwargs)
+    return wrapper
+
+
+def storage(method):
+    @wraps(method)
+    def wrapper(obj: 'ar.Atmosphere', frequency: float) -> Union[Number, TensorLike]:
+        key = (frequency, method.__qualname__)
         if obj.use_storage:
             if key not in obj.storage:
                 obj.storage[key] = method(obj, frequency)
             return obj.storage[key]
         return method(obj, frequency)
     return wrapper
+
+
+# def atmospheric(method):
+#     @wraps(method)
+#     def wrapper(obj: 'ar.Atmosphere', frequency: float) -> Union[Number, TensorLike]:
+#         key = (frequency, method.__qualname__)
+#         if hasattr(obj, 'outer'):
+#             obj = obj.outer
+#         if obj.use_storage:
+#             if key not in obj.storage:
+#                 obj.storage[key] = method(obj, frequency)
+#             return obj.storage[key]
+#         return method(obj, frequency)
+#     return wrapper
 
 
 class op_cpu:
@@ -165,26 +186,24 @@ class ar:
             @staticmethod
             def simpson(a: Tensor1D_or_3D, lower: int, upper: int,
                         dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
-                pass
-                # if isinstance(dh, float):
-                #     return (a[lower] + a[upper] + 4 * ar.op.sum(a[lower + 1:upper:2], axis=0) +
-                #             2 * ar.op.sum(a[lower + 2:upper:2], axis=0)) * dh / 3.
-                # return (a[lower] * dh[lower] + a[upper] * dh[upper] +
-                #         4 * ar.op.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
-                #         2 * ar.op.sum(a[lower + 2:upper:2] * dh[lower + 2:upper:2], axis=0)) / 3.
+                return (ar.c.indexer.at(a, lower) * ar.c.indexer.at(dh, lower) +
+                        ar.c.indexer.at(a, upper) * ar.c.indexer.at(dh, upper) +
+                        4 * ar.op.sum(ar.c.indexer.diap(a, lower+1, upper, 2) *
+                                      ar.c.indexer.diap(dh, lower+1, upper, 2), axis=-1) +
+                        2 * ar.op.sum(ar.c.indexer.diap(a, lower+2, upper, 2) *
+                                      ar.c.indexer.diap(dh, lower+2, upper, 2), axis=-1)) / 3.
 
             @staticmethod
             def boole(a: Tensor1D_or_3D, lower: int, upper: int,
                       dh: Union[float, Tensor1D]) -> Union[Number, Tensor2D]:
-                pass
-                # if isinstance(dh, float):
-                #     return (14 * (a[lower] + a[upper]) + 64 * ar.op.sum(a[lower + 1:upper:2], axis=0) +
-                #             24 * ar.op.sum(a[lower + 2:upper:4], axis=0) +
-                #             28 * ar.op.sum(a[lower + 4:upper:4], axis=0)) * dh / 45.
-                # return (14 * (a[lower] * dh[lower] + a[upper] * dh[upper]) +
-                #         64 * ar.op.sum(a[lower + 1:upper:2] * dh[lower + 1:upper:2], axis=0) +
-                #         24 * ar.op.sum(a[lower + 2:upper:4] * dh[lower + 2:upper:4], axis=0) +
-                #         28 * ar.op.sum(a[lower + 4:upper:4] * dh[lower + 4:upper:4], axis=0)) / 45.
+                return (14 * (ar.c.indexer.at(a, lower) * ar.c.indexer.at(dh, lower) +
+                        ar.c.indexer.at(a, upper) * ar.c.indexer.at(dh, upper)) +
+                        64 * ar.op.sum(ar.c.indexer.diap(a, lower+1, upper, 2) *
+                                      ar.c.indexer.diap(dh, lower+1, upper, 2), axis=-1) +
+                        24 * ar.op.sum(ar.c.indexer.diap(a, lower+2, upper, 4) *
+                                      ar.c.indexer.diap(dh, lower+2, upper, 4), axis=-1) +
+                        28 * ar.op.sum(ar.c.indexer.diap(a, lower+4, upper, 4) *
+                                       ar.c.indexer.diap(dh, lower+4, upper, 4), axis=-1)) / 45.
 
             @staticmethod
             def limits(a: Tensor1D_or_3D, lower: int, upper: int,
@@ -202,62 +221,71 @@ class ar:
                 return ar.c.integrate.limits(a, 0, ar.c.indexer.last_index(a), dh, method)
 
             @staticmethod
-            def slant(a: Tensor1D_or_3D, lower: int, upper: int,
-                      dh: Union[float, Tensor1D] = 10./500, PX: float = 50.,
-                      theta: float = 0., method='trapz',
-                      mode='valid') -> Union[Number, Tensor2D]:
-                if np.isclose(theta, 0.):
-                    return ar.c.integrate.full(a, dh, method)
-                rank = ar.op.rank(a)
-                if rank == 1:
-                    return ar.c.integrate.full(a, dh, method) / ar.op.cos(theta)
-                elif rank == 3:
-                    Ix, Iy, Iz = a.shape
-                    dh = np.asarray(dh)
-                    dz = dh / np.cos(theta)
-                    dx = dz * np.sin(theta)
-                    di = Ix * dx / PX
-                    if isinstance(dh, float):
-                        full_shift = int(np.round(di * (Iz - 1), decimals=0))
-                        b = ar.op.as_variable(ar.op.zeros((Ix + full_shift, Iy, Iz)))
-                        if isinstance(b, np.ndarray):
-                            for k, z in enumerate(range(Iz - 1, -1, -1)):
-                                shift = int(np.round(k * di, decimals=0))
-                                b[shift:shift + Ix, :, z] = a[:, :, z]
-                        else:
-                            for k, z in enumerate(range(Iz - 1, -1, -1)):
-                                shift = int(np.round(k * di, decimals=0))
-                                b[shift:shift + Ix, :, z].assign(a[:, :, z])
-                    else:
-                        assert len(di) == Iz, 'размер должен совпадать'
-                        full_shift = int(np.round(np.sum(di), decimals=0))
-                        b = ar.op.as_variable(ar.op.zeros((Ix + full_shift, Iy, Iz)))
-                        if isinstance(b, np.ndarray):
-                            for z in range(Iz - 1, -1, -1):
-                                shift = int(np.round(np.sum(di[z:])))
-                                b[shift:shift + Ix, :, z] = a[:, :, z]
-                        else:
-                            for z in range(Iz - 1, -1, -1):
-                                shift = int(np.round(np.sum(di[z:])))
-                                b[shift:shift + Ix, :, z].assign(a[:, :, z])
-                    integral = ar.c.integrate.limits(ar.op.as_tensor(b), lower, upper, dz, method)
-                    if mode.lower() == 'valid':
-                        return integral
-                    return integral[full_shift // 2:full_shift // 2 + Ix, :]  # mode 'same'
-                raise RuntimeError('неверная размерность. Только 1D- и 3D-массивы')
-
-            @staticmethod
             def callable(f: Callable, lower: int, upper: int,
-                         dh: Union[float, Tensor1D]) -> Union[Number, TensorLike]:
-                if isinstance(dh, float):
-                    a = dh * (f(lower) + f(upper)) / 2.
-                    for k in range(lower + 1, upper):
-                        a += dh * f(k)
-                    return a
-                a = (dh[lower] * f(lower) + dh[upper] * f(upper)) / 2.
-                for k in range(lower + 1, upper):
-                    a += dh[k] * f(k)
-                return a
+                         dh: Union[float, Tensor1D], method='trapz') -> Union[Number, TensorLike]:
+                # if isinstance(dh, float):
+                #     a = dh * (f(lower) + f(upper)) / 2.
+                #     for k in range(lower + 1, upper):
+                #         a += dh * f(k)
+                #     return a
+                # a = (dh[lower] * f(lower) + dh[upper] * f(upper)) / 2.
+                # for k in range(lower + 1, upper):
+                #     a += dh[k] * f(k)
+                # return a
+                a = ar.op.as_tensor([f(i) for i in range(lower, upper + 1, 1)])
+                a = ar.op.transpose(a, axes=[1, 2, 0])
+                return ar.c.integrate.limits(a, lower, upper, dh, method)
+
+            class slantx:
+                @staticmethod
+                def limits(a: Tensor1D_or_3D, lower: int, upper: int,
+                           dh: Union[float, Tensor1D] = 10./500, PX: float = 50.,
+                           theta: float = 0., method='trapz',
+                           mode='valid') -> Union[Number, Tensor2D]:
+                    if np.isclose(theta, 0.):
+                        return ar.c.integrate.full(a, dh, method)
+                    rank = ar.op.rank(a)
+                    if rank == 1:
+                        return ar.c.integrate.full(a, dh, method) / ar.op.cos(theta)
+                    elif rank == 3:
+                        Ix, Iy, Iz = a.shape
+                        dh = np.asarray(dh)
+                        dz = dh / np.cos(theta)
+                        dx = dz * np.sin(theta)
+                        di = Ix * dx / PX
+                        if isinstance(dh, float):
+                            full_shift = int(np.round(di * (Iz - 1), decimals=0))
+                            b = np.zeros((Ix + full_shift, Iy, Iz))
+                            for k, z in enumerate(range(Iz - 1, -1, -1)):
+                                shift = int(np.round(k * di, decimals=0))
+                                b[shift:shift + Ix, :, z] = a[:, :, z]
+                        else:
+                            assert len(di) == Iz, 'размер должен совпадать'
+                            full_shift = int(np.round(np.sum(di), decimals=0))
+                            b = np.zeros((Ix + full_shift, Iy, Iz))
+                            for z in range(Iz - 1, -1, -1):
+                                shift = int(np.round(np.sum(di[z:])))
+                                b[shift:shift + Ix, :, z] = a[:, :, z]
+                        integral = ar.c.integrate.limits(ar.op.as_tensor(b), lower, upper, dz, method)
+                        if mode.lower() == 'full':
+                            return integral
+                        if mode.lower() == 'same':
+                            return integral[full_shift // 2:full_shift // 2 + Ix, :]  # mode 'same'
+                        return integral[full_shift:Ix, :]  # mode 'valid'
+                    raise RuntimeError('неверная размерность. Только 1D- и 3D-массивы')
+
+                @staticmethod
+                def full(a: Tensor1D_or_3D, dh: Union[float, Tensor1D] = 10./500, PX: float = 50.,
+                         theta: float = 0., method='trapz', mode='valid') -> Union[Number, Tensor2D]:
+                    return ar.c.integrate.slantx.limits(a, 0, ar.c.indexer.last_index(a), dh, PX, theta, method, mode)
+
+                @staticmethod
+                def callable(f: Callable, lower: int, upper: int,
+                             dh: Union[float, Tensor1D] = 10. / 500, PX: float = 50.,
+                             theta: float = 0., method='trapz', mode='valid') -> Union[Number, TensorLike]:
+                    a = ar.op.as_tensor([f(i) for i in range(lower, upper + 1, 1)])
+                    a = ar.op.transpose(a, axes=[1, 2, 0])
+                    return ar.c.integrate.slantx.limits(a, lower, upper, dh, PX, theta, method, mode)
 
         class multi:
             @staticmethod
@@ -676,11 +704,14 @@ class ar:
             else:
                 assert self._T.shape[-1] == len(altitudes), 'altitudes не соответствует Temperature'
                 assert not np.isclose(altitudes[0], 0.), 'нулевая высота'
-                self._dh = np.diff(np.insert(altitudes, 0, 0.), dtype=cpu_float)  # self._dh - np.ndarray
+                self._dh = np.diff(np.insert(altitudes, 0, 0.))  # self._dh - np.ndarray
                 self._alt = altitudes
+            if LiquidWater is None:
+                LiquidWater = ar.op.zeros_like(self._T)
             self._w = LiquidWater
             self._tcl = -2  # по Цельсию
             self._theta = 0.  # угол наблюдения в радианах
+            self._PX = 50.  # горизонтальная протяженность в километрах
             self.integration_method = 'trapz'
             self.storage: dict = {}
             self.use_storage = True
@@ -783,6 +814,17 @@ class ar:
         def dh(self) -> Union[float, np.ndarray]:
             return self._dh
 
+        @dh.setter
+        def dh(self, val: Union[float, np.ndarray]):
+            self._dh = val
+            affected = [self.opacity.oxygen.__qualname__,
+                        self.opacity.water_vapor.__qualname__,
+                        self.opacity.liquid_water.__qualname__,
+                        self.opacity.summary.__qualname__,
+                        self.downward.brightness_temperature.__qualname__,
+                        self.upward.brightness_temperature.__qualname__]
+            self.refresh(affected)
+
         @property
         def effective_cloud_temperature(self) -> float:
             return self._tcl
@@ -798,17 +840,35 @@ class ar:
                         self.upward.brightness_temperature.__qualname__]
             self.refresh(affected)
 
-        @effective_cloud_temperature.setter
-        def effective_cloud_temperature(self, value: float):
-            self._tcl = value
-
         @property
-        def zenith_angle(self) -> float:
+        def angle(self) -> float:
             return self._theta
 
-        @zenith_angle.setter
-        def zenith_angle(self, val: float):
+        @angle.setter
+        def angle(self, val: float):
             self._theta = val
+            affected = [self.opacity.oxygen.__qualname__,
+                        self.opacity.water_vapor.__qualname__,
+                        self.opacity.liquid_water.__qualname__,
+                        self.opacity.summary.__qualname__,
+                        self.downward.brightness_temperature.__qualname__,
+                        self.upward.brightness_temperature.__qualname__]
+            self.refresh(affected)
+
+        @property
+        def horizontal_extent(self):
+            return self._PX
+
+        @horizontal_extent.setter
+        def horizontal_extent(self, val: float):
+            self._PX = val
+            affected = [self.opacity.oxygen.__qualname__,
+                        self.opacity.water_vapor.__qualname__,
+                        self.opacity.liquid_water.__qualname__,
+                        self.opacity.summary.__qualname__,
+                        self.downward.brightness_temperature.__qualname__,
+                        self.upward.brightness_temperature.__qualname__]
+            self.refresh(affected)
 
         @classmethod
         def Standard(cls, T0: float = 15., P0: float = 1013, rho0: float = 7.5,
@@ -828,7 +888,7 @@ class ar:
             :param HP: характеристическая высота для давления, км
             :param Hrho: характеристическая высота распределения водяного пара, км
             """
-            assert H > 99 * dh, 'H должно быть >> dh'
+            # assert H > 99 * dh, 'H должно быть >> dh'  # !!!
             altitudes = np.arange(dh, H + dh, dh)
 
             temperature = []
@@ -867,6 +927,7 @@ class ar:
                 self.outer = atmosphere
 
             @atmospheric
+            @storage
             def oxygen(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 См. Rec.ITU-R. P.676-3
@@ -877,6 +938,7 @@ class ar:
                 return ar.static.attenuation.oxygen(frequency, self._T, self._P)
 
             @atmospheric
+            @storage
             def water_vapor(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 См. Rec.ITU-R. P.676-3
@@ -887,6 +949,7 @@ class ar:
                 return ar.static.attenuation.water_vapor(frequency, self._T, self._P, self._rho)
 
             @atmospheric
+            @storage
             def liquid_water(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 Б.Г. Кутуза
@@ -897,6 +960,7 @@ class ar:
                 return ar.static.attenuation.liquid_water(frequency, self._tcl, self._w)
 
             @atmospheric
+            @storage
             def summary(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
                 """
                 :param frequency: частота излучения в ГГц
@@ -914,36 +978,48 @@ class ar:
                 self.outer = atmosphere
 
             @atmospheric
+            @storage
             def oxygen(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в кислороде (путем интегрирования погонного коэффициента). В неперах
                 """
-                return dB2np * ar.c.integrate.full(self.attenuation.oxygen(frequency),
-                                                   self._dh, self.integration_method)
+                # return dB2np * ar.c.integrate.full(self.attenuation.oxygen(frequency),
+                #                                    self._dh, self.integration_method)
+                return dB2np * ar.c.integrate.slantx.full(self.attenuation.oxygen(frequency),
+                                                          self._dh, self._PX, self._theta, self.integration_method)
 
             @atmospheric
+            @storage
             def water_vapor(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в водяном паре (путем интегрирования погонного коэффициента). В неперах
                 """
-                return dB2np * ar.c.integrate.full(self.attenuation.water_vapor(frequency),
-                                                   self._dh, self.integration_method)
+                # return dB2np * ar.c.integrate.full(self.attenuation.water_vapor(frequency),
+                #                                    self._dh, self.integration_method)
+                return dB2np * ar.c.integrate.slantx.full(self.attenuation.water_vapor(frequency),
+                                                          self._dh, self._PX, self._theta, self.integration_method)
 
             @atmospheric
+            @storage
             def liquid_water(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в облаке (путем интегрирования погонного коэффициента). В неперах
                 """
-                return dB2np * ar.c.integrate.full(self.attenuation.liquid_water(frequency),
-                                                   self._dh, self.integration_method)
+                # return dB2np * ar.c.integrate.full(self.attenuation.liquid_water(frequency),
+                #                                    self._dh, self.integration_method)
+                return dB2np * ar.c.integrate.slantx.full(self.attenuation.liquid_water(frequency),
+                                                          self._dh, self._PX, self._theta, self.integration_method)
 
             @atmospheric
+            @storage
             def summary(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 :return: полное поглощение в атмосфере (путем интегрирования). В неперах
                 """
-                return dB2np * ar.c.integrate.full(self.attenuation.summary(frequency),
-                                                   self._dh, self.integration_method)
+                # return dB2np * ar.c.integrate.full(self.attenuation.summary(frequency),
+                #                                    self._dh, self.integration_method)
+                return dB2np * ar.c.integrate.slantx.full(self.attenuation.summary(frequency),
+                                                          self._dh, self._PX, self._theta, self.integration_method)
 
         class downward:
             """
@@ -953,6 +1029,7 @@ class ar:
                 self.outer = atmosphere
 
             @atmospheric
+            @storage
             def brightness_temperature(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 Яркостная температура нисходящего излучения
@@ -964,8 +1041,11 @@ class ar:
                 f = lambda h: ar.c.indexer.at(T, h) * ar.c.indexer.at(g, h) * \
                     ar.op.exp(-1 * ar.c.integrate.limits(g, 0, h, self._dh, self.integration_method))
                 inf = ar.c.indexer.last_index(g)
-                return ar.c.integrate.callable(f, 0, inf, self._dh)
+                # return ar.c.integrate.callable(f, 0, inf, self._dh)
+                return ar.c.integrate.slantx.callable(f, 0, inf,
+                                                      self._dh, self._PX, self._theta, self.integration_method)
 
+            @atmospheric
             def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
                 """
@@ -974,8 +1054,8 @@ class ar:
                 :param frequencies: список частот в ГГц
                 :param n_workers: количество потоков для распараллеливания
                 """
-                if self.use_storage:
-                    warnings.warn('storage не может быть использован')
+                # if self.use_storage:
+                #     warnings.warn('storage не может быть использован')
                 return ar.c.multi.parallel(frequencies,
                                            func=self.downward.brightness_temperature,
                                            args=(), n_workers=n_workers)
@@ -988,6 +1068,7 @@ class ar:
                 self.outer = atmosphere
 
             @atmospheric
+            @storage
             def brightness_temperature(self: 'ar.Atmosphere', frequency: float) -> Union[float, Tensor2D]:
                 """
                 Яркостная температура восходящего излучения (без учета подстилающей поверхности)
@@ -999,8 +1080,11 @@ class ar:
                 T = self._T + 273.15
                 f = lambda h: ar.c.indexer.at(T, h) * ar.c.indexer.at(g, h) * \
                     ar.op.exp(-1 * ar.c.integrate.limits(g, h, inf, self._dh, self.integration_method))
-                return ar.c.integrate.callable(f, 0, inf, self._dh)
+                # return ar.c.integrate.callable(f, 0, inf, self._dh)
+                return ar.c.integrate.slantx.callable(f, 0, inf,
+                                                      self._dh, self._PX, self._theta, self.integration_method)
 
+            @atmospheric
             def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
                 """
@@ -1009,8 +1093,8 @@ class ar:
                 :param frequencies: список частот в ГГц
                 :param n_workers: количество потоков для распараллеливания
                 """
-                if self.use_storage:
-                    warnings.warn('storage не может быть использован')
+                # if self.use_storage:
+                #     warnings.warn('storage не может быть использован')
                 return ar.c.multi.parallel(frequencies,
                                            func=self.upward.brightness_temperature,
                                            args=(), n_workers=n_workers)
@@ -1112,11 +1196,11 @@ class ar:
             self._T = val
 
         @property
-        def zenith_angle(self) -> float:
+        def angle(self) -> float:
             return self._theta
 
-        @zenith_angle.setter
-        def zenith_angle(self, val: float):
+        @angle.setter
+        def angle(self, val: float):
             self._theta = val
 
         @property
@@ -1213,8 +1297,8 @@ class ar:
                 :param srf: объект Surface (поверхность)
                 :param n_workers: количество потоков для распараллеливания
                 """
-                if atm.use_storage:
-                    warnings.warn('storage не может быть использован')
+                # if atm.use_storage:
+                #     warnings.warn('storage не может быть использован')
                 return ar.c.multi.parallel(frequencies,
                                            func=ar.satellite.brightness_temperature,
                                            args=(atm, srf,), n_workers=n_workers)

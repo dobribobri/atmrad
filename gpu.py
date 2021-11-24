@@ -5,6 +5,7 @@ import numpy as np
 import warnings
 from cpu import TensorLike, Number
 from cpu import op_cpu
+from cpu import atmospheric
 from cpu import ar as cpu
 
 import tensorflow as tf
@@ -102,6 +103,7 @@ class ar(cpu):
             """
             Нисходящее излучение
             """
+            @atmospheric
             def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
                 """
@@ -121,6 +123,7 @@ class ar(cpu):
             """
             Восходящее излучение
             """
+            @atmospheric
             def brightness_temperatures(self: 'ar.Atmosphere', frequencies: Union[np.ndarray, List[float]],
                                         n_workers: int = None) -> np.ndarray:
                 """
