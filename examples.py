@@ -192,26 +192,25 @@ def ex6():
 
 
 def ex7():
-    theta = 51. * np.pi / 180.
+    theta = 50. * np.pi / 180.
     PX = 50.
     PZ = 10.
     Nx = 400
     Nz = 500
-
-    atmosphere = ar.Atmosphere.Standard(H=PZ)
-    atmosphere.integration_method = 'trapz'
-    atmosphere.angle = theta
-    atmosphere.horizontal_extent = PX  # km
-    atmosphere.use_storage = False
+    dh = PZ / Nz
 
     h_map = ar.Planck((PX, PX, PZ), (Nx, Nx, Nz)).h_map(K=100)
 
-    shift = atmosphere.dh * PZ / np.cos(theta) * np.sin(theta)
-    print(shift)
+    shift = dh * PZ / np.cos(theta) * np.sin(theta)
     n = int(np.round(shift * len(h_map) / 2.))
-    print(n)
+    print('n = {}'.format(n))
     h_map = ar.map.add_zeros(h_map, bounds=(n, 0))
-    print(h_map.shape)
+
+    atmosphere = ar.Atmosphere.Standard(H=PZ, dh=dh)
+    atmosphere.integration_method = 'trapz'
+    atmosphere.angle = theta
+    atmosphere.horizontal_extent = PX + shift  # km
+    atmosphere.use_storage = False
     atmosphere.liquid_water = ar.Planck((PX + shift, PX, PZ), (Nx + 2 * n, Nx, Nz)).lw_dist(h_map)
 
     brt = []
@@ -228,6 +227,21 @@ def ex7():
     brt.append(np.asarray(ar.satellite.multi.brightness_temperature([22.2], atmosphere, surface)[0], dtype=float))
     print(atmosphere.storage.keys())
     print("--- %s seconds ---" % (time.time() - start_time))
+
+    vmin, vmax = np.min(brt), np.max(brt)
+    print(vmin, vmax)
+
+    fig, axes = plt.subplots(nrows=1, ncols=2)
+    title = ['H polarization', 'V polarization']
+    for i, ax in enumerate(axes.flat):
+        ax.set_title(title[i])
+        ax.set_xlabel('X, nodes')
+        ax.set_ylabel('Y, nodes')
+        im = ax.imshow(brt[i], vmin=vmin, vmax=vmax)
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    fig.colorbar(im, ax=axes.ravel().tolist(), cax=cbar_ax)
+    plt.show()
 
     plt.figure('H polarization')
     plt.title('H polarization')
