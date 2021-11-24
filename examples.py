@@ -42,6 +42,7 @@ def ex1():
     atmosphere.dh = dh
     atmosphere.angle = 0. * np.pi / 180.
     # atmosphere.angle = 51. * np.pi / 180.
+    # atmosphere.horizontal_extent = 50.  # km
     # atmosphere.use_storage = False
 
     surface = ar.SmoothWaterSurface()
@@ -123,7 +124,7 @@ def ex5():
     plt.xlabel(r'Частота $\nu$, ГГц')
     plt.ylabel('Яркостная температура, K')
 
-    d = '08'
+    d = '04'
     labels = ['По данным радиозонда от {}.10.2021 00Z'.format(d),
               'По данным радиозонда от {}.10.2021 12Z'.format(d)]
     colors = ['darkblue', 'darkorange']
@@ -183,6 +184,12 @@ def ex5():
     plt.show()
 
 
+def ex6():
+    a = np.ones((20, 25))
+    b = ar.c.map.add_zeros(a, bounds=(3, 4))
+    print(b)
+
+
 if __name__ == '__main__':
 
-    ex1()
+    ex6()

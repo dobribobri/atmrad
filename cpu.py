@@ -131,6 +131,26 @@ class op_cpu:
     def round(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
         return np.round(a)
 
+    @staticmethod
+    def mean(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return np.mean(a, axis=axis)
+
+    @staticmethod
+    def min(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return np.min(a, axis=axis)
+
+    @staticmethod
+    def max(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return np.max(a, axis=axis)
+
+    @staticmethod
+    def stddev(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return np.std(a, axis=axis)
+
+    @staticmethod
+    def variance(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return np.var(a, axis=axis)
+
 
 class ar:
     op = op_cpu
@@ -145,6 +165,42 @@ class ar:
         pass
 
     class c:
+
+        class map:
+            @staticmethod
+            def block_averaging(array: np.ndarray,
+                                kernel: Union[Tuple, int] = (10, 10), same_size=True) -> np.ndarray:
+                if type(kernel) == int:
+                    ni = nj = kernel
+                else:
+                    ni, nj = kernel
+                if same_size:
+                    for i in range(0, len(array), ni):
+                        for j in range(0, len(array[i]), nj):
+                            array[i:i + ni, j:j + nj] = np.mean(array[i:i + ni, j:j + nj])
+                else:
+                    new_arr = np.zeros((len(array) // ni, len(array[0]) // nj), dtype=float)
+                    for i in range(0, len(array), ni):
+                        for j in range(0, len(array[i]), nj):
+                            new_arr[i // ni, j // nj] = np.mean(array[i:i + ni, j:j + nj])
+                    array = new_arr
+                return array
+
+            @staticmethod
+            def add_zeros(array: np.ndarray, bounds: Union[Tuple[int, int], Tuple[int, int, int, int], int]):
+                if type(bounds) == int:
+                    top = right = bottom = left = bounds
+                elif len(bounds) == 2:
+                    top, right = bounds
+                    bottom, left = top, right
+                elif len(bounds) == 4:
+                    top, right, bottom, left = bounds
+                else:
+                    raise RuntimeError('неверно задан параметр \'pixels\'')
+                h, w = array.shape
+                b = np.zeros((h + top + bottom, w + left + right), dtype=array.dtype)
+                b[top:-bottom, left:-right] = array[:, :]
+                return b
 
         class indexer:
             @staticmethod

@@ -85,6 +85,26 @@ class op_gpu(op_cpu):
     def round(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
         return tf.round(a)
 
+    @staticmethod
+    def mean(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return tf.reduce_mean(a, axis=axis)
+
+    @staticmethod
+    def min(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return tf.reduce_min(a, axis=axis)
+
+    @staticmethod
+    def max(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return tf.reduce_max(a, axis=axis)
+
+    @staticmethod
+    def stddev(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return tf.math.reduce_std(a, axis=axis)
+
+    @staticmethod
+    def variance(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
+        return tf.math.reduce_variance(a, axis=axis)
+
 
 class ar(cpu):
     cpu.op = op_gpu
