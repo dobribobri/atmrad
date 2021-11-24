@@ -124,7 +124,7 @@ class op_cpu:
         return np.zeros_like(a, dtype=cpu_float)
 
     @staticmethod
-    def complex(real: float, imag: float) -> complex:
+    def complex(real: float, imag: float = 0.) -> complex:
         return np.complex(real, imag)
 
     @staticmethod
@@ -164,43 +164,49 @@ class ar:
     class Planck(Planck):
         pass
 
+    class map:
+        @staticmethod
+        def block_averaging(array: np.ndarray,
+                            kernel: Union[Tuple, int] = (10, 10), same_size=True) -> np.ndarray:
+            if type(kernel) == int:
+                ni = nj = kernel
+            else:
+                ni, nj = kernel
+            if same_size:
+                for i in range(0, len(array), ni):
+                    for j in range(0, len(array[i]), nj):
+                        array[i:i + ni, j:j + nj] = np.mean(array[i:i + ni, j:j + nj])
+            else:
+                new_arr = np.zeros((len(array) // ni, len(array[0]) // nj), dtype=float)
+                for i in range(0, len(array), ni):
+                    for j in range(0, len(array[i]), nj):
+                        new_arr[i // ni, j // nj] = np.mean(array[i:i + ni, j:j + nj])
+                array = new_arr
+            return array
+
+        @staticmethod
+        def add_zeros(array: np.ndarray, bounds: Union[Tuple[int, int], Tuple[int, int, int, int], int]):
+            if type(bounds) == int:
+                top = right = bottom = left = bounds
+            elif len(bounds) == 2:
+                top, right = bounds
+                bottom, left = top, right
+            elif len(bounds) == 4:
+                top, right, bottom, left = bounds
+            else:
+                raise RuntimeError('неверно задан параметр \'pixels\'')
+            assert top >= 0 and right >= 0 and bottom >= 0 and left >= 0, 'только положительные числа'
+            h, w = array.shape
+            b = np.zeros((h + top + bottom, w + left + right), dtype=array.dtype)
+            nh, nw = b.shape
+            if bottom == 0:
+                bottom = -nh
+            if right == 0:
+                right = -nw
+            b[top:-bottom, left:-right] = array[:, :]
+            return b
+
     class c:
-
-        class map:
-            @staticmethod
-            def block_averaging(array: np.ndarray,
-                                kernel: Union[Tuple, int] = (10, 10), same_size=True) -> np.ndarray:
-                if type(kernel) == int:
-                    ni = nj = kernel
-                else:
-                    ni, nj = kernel
-                if same_size:
-                    for i in range(0, len(array), ni):
-                        for j in range(0, len(array[i]), nj):
-                            array[i:i + ni, j:j + nj] = np.mean(array[i:i + ni, j:j + nj])
-                else:
-                    new_arr = np.zeros((len(array) // ni, len(array[0]) // nj), dtype=float)
-                    for i in range(0, len(array), ni):
-                        for j in range(0, len(array[i]), nj):
-                            new_arr[i // ni, j // nj] = np.mean(array[i:i + ni, j:j + nj])
-                    array = new_arr
-                return array
-
-            @staticmethod
-            def add_zeros(array: np.ndarray, bounds: Union[Tuple[int, int], Tuple[int, int, int, int], int]):
-                if type(bounds) == int:
-                    top = right = bottom = left = bounds
-                elif len(bounds) == 2:
-                    top, right = bounds
-                    bottom, left = top, right
-                elif len(bounds) == 4:
-                    top, right, bottom, left = bounds
-                else:
-                    raise RuntimeError('неверно задан параметр \'pixels\'')
-                h, w = array.shape
-                b = np.zeros((h + top + bottom, w + left + right), dtype=array.dtype)
-                b[top:-bottom, left:-right] = array[:, :]
-                return b
 
         class indexer:
             @staticmethod
@@ -279,25 +285,18 @@ class ar:
             @staticmethod
             def callable(f: Callable, lower: int, upper: int,
                          dh: Union[float, Tensor1D], method='trapz') -> Union[Number, TensorLike]:
-                # if isinstance(dh, float):
-                #     a = dh * (f(lower) + f(upper)) / 2.
-                #     for k in range(lower + 1, upper):
-                #         a += dh * f(k)
-                #     return a
-                # a = (dh[lower] * f(lower) + dh[upper] * f(upper)) / 2.
-                # for k in range(lower + 1, upper):
-                #     a += dh[k] * f(k)
-                # return a
                 a = ar.op.as_tensor([f(i) for i in range(lower, upper + 1, 1)])
                 a = ar.op.transpose(a, axes=[1, 2, 0])
                 return ar.c.integrate.limits(a, lower, upper, dh, method)
 
             class slantx:
+                default_mode = 'valid'
+
                 @staticmethod
                 def limits(a: Tensor1D_or_3D, lower: int, upper: int,
                            dh: Union[float, Tensor1D] = 10./500, PX: float = 50.,
                            theta: float = 0., method='trapz',
-                           mode='valid') -> Union[Number, Tensor2D]:
+                           mode=default_mode) -> Union[Number, Tensor2D]:
                     if np.isclose(theta, 0.):
                         return ar.c.integrate.full(a, dh, method)
                     rank = ar.op.rank(a)
@@ -305,23 +304,18 @@ class ar:
                         return ar.c.integrate.full(a, dh, method) / ar.op.cos(theta)
                     elif rank == 3:
                         Ix, Iy, Iz = a.shape
-                        dh = np.asarray(dh)
-                        dz = dh / np.cos(theta)
-                        dx = dz * np.sin(theta)
-                        di = Ix * dx / PX
                         if isinstance(dh, float):
-                            full_shift = int(np.round(di * (Iz - 1), decimals=0))
-                            b = np.zeros((Ix + full_shift, Iy, Iz))
-                            for k, z in enumerate(range(Iz - 1, -1, -1)):
-                                shift = int(np.round(k * di, decimals=0))
-                                b[shift:shift + Ix, :, z] = a[:, :, z]
-                        else:
-                            assert len(di) == Iz, 'размер должен совпадать'
-                            full_shift = int(np.round(np.sum(di), decimals=0))
-                            b = np.zeros((Ix + full_shift, Iy, Iz))
-                            for z in range(Iz - 1, -1, -1):
-                                shift = int(np.round(np.sum(di[z:])))
-                                b[shift:shift + Ix, :, z] = a[:, :, z]
+                            dh = ar.op.as_tensor([dh for _ in range(Iz)])
+                        dz = dh / ar.op.cos(theta)
+                        dx = dz * ar.op.sin(theta)
+                        di = Ix * dx / PX
+                        assert ar.op.len(di) == Iz, 'размер должен совпадать'
+                        full_shift = int(np.round(np.sum(di)))
+                        print(full_shift)
+                        b = np.zeros((Ix + full_shift, Iy, Iz))
+                        for z in range(Iz - 1, -1, -1):
+                            shift = int(np.round(np.sum(di[z:])))
+                            b[shift:shift + Ix, :, z] = a[:, :, z]
                         integral = ar.c.integrate.limits(ar.op.as_tensor(b), lower, upper, dz, method)
                         if mode.lower() == 'full':
                             return integral
@@ -332,13 +326,13 @@ class ar:
 
                 @staticmethod
                 def full(a: Tensor1D_or_3D, dh: Union[float, Tensor1D] = 10./500, PX: float = 50.,
-                         theta: float = 0., method='trapz', mode='valid') -> Union[Number, Tensor2D]:
+                         theta: float = 0., method='trapz', mode=default_mode) -> Union[Number, Tensor2D]:
                     return ar.c.integrate.slantx.limits(a, 0, ar.c.indexer.last_index(a), dh, PX, theta, method, mode)
 
                 @staticmethod
                 def callable(f: Callable, lower: int, upper: int,
                              dh: Union[float, Tensor1D] = 10. / 500, PX: float = 50.,
-                             theta: float = 0., method='trapz', mode='valid') -> Union[Number, TensorLike]:
+                             theta: float = 0., method='trapz', mode=default_mode) -> Union[Number, TensorLike]:
                     a = ar.op.as_tensor([f(i) for i in range(lower, upper + 1, 1)])
                     a = ar.op.transpose(a, axes=[1, 2, 0])
                     return ar.c.integrate.slantx.limits(a, lower, upper, dh, PX, theta, method, mode)
@@ -430,15 +424,16 @@ class ar:
                     :param Sw: соленость, промили
                     """
                     epsilon = ar.static.water.dielectric.epsilon_complex(frequency, T, Sw)
-                    cos = ar.op.sqrt(epsilon - ar.op.cos(psi) * ar.op.cos(psi))
-                    return (ar.op.sin(psi) - cos) / (ar.op.sin(psi) + cos)
+                    cos = ar.op.sqrt(epsilon - ar.op.complex(ar.op.cos(psi) * ar.op.cos(psi)))
+                    return (ar.op.complex(ar.op.sin(psi)) - cos) / (ar.op.complex(ar.op.sin(psi)) + cos)
 
                 @staticmethod
                 def M_vertical(frequency: float, psi: float, T: Union[float, Tensor2D],
                                Sw: Union[float, Tensor2D] = 0.) -> Union[Number, Tensor2D]:
                     epsilon = ar.static.water.dielectric.epsilon_complex(frequency, T, Sw)
-                    cos = ar.op.sqrt(epsilon - ar.op.cos(psi) * ar.op.cos(psi))
-                    return (epsilon * ar.op.sin(psi) - cos) / (epsilon * ar.op.sin(psi) + cos)
+                    cos = ar.op.sqrt(epsilon - ar.op.complex(real=ar.op.cos(psi) * ar.op.cos(psi)))
+                    return (epsilon * ar.op.complex(ar.op.sin(psi)) - cos) / \
+                           (epsilon * ar.op.complex(ar.op.sin(psi)) + cos)
 
                 @staticmethod
                 def R_horizontal(frequency: float, theta: float, T: Union[float, Tensor2D],

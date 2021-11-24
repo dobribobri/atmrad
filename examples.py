@@ -38,17 +38,18 @@ def ex1():
     atmosphere = ar.Atmosphere.Standard()
     atmosphere.liquid_water = ar.Planck().get_lw_dist(K=100)
     atmosphere.integration_method = 'trapz'
-    dh = np.asarray([atmosphere.dh for _ in range(ar.op.len(atmosphere.temperature))])
-    atmosphere.dh = dh
-    atmosphere.angle = 0. * np.pi / 180.
-    # atmosphere.angle = 51. * np.pi / 180.
-    # atmosphere.horizontal_extent = 50.  # km
+    # dh = np.asarray([atmosphere.dh for _ in range(ar.op.len(atmosphere.temperature))])
+    # atmosphere.dh = dh
+    # atmosphere.angle = 0. * np.pi / 180.
+    atmosphere.angle = 51. * np.pi / 180.
+    atmosphere.horizontal_extent = 50.  # km
     # atmosphere.use_storage = False
 
     surface = ar.SmoothWaterSurface()
+    surface.angle = atmosphere.angle
 
     start_time = time.time()
-    brt = ar.satellite.multi.brightness_temperature([18.0, 22.2], atmosphere, surface)
+    brt = ar.satellite.multi.brightness_temperature([22.2], atmosphere, surface)
     print(atmosphere.storage.keys())
     print("--- %s seconds ---" % (time.time() - start_time))
 
@@ -56,7 +57,7 @@ def ex1():
     plt.xlabel('X, nodes')
     plt.ylabel('Y, nodes')
     # plt.imshow(block_averaging(np.asarray(brt[1], dtype=float), 50), cmap='Purples')
-    plt.imshow(np.asarray(brt[1], dtype=float))
+    plt.imshow(np.asarray(brt[0], dtype=float))
     plt.colorbar()
     plt.savefig('ex4.png', dpi=300)
     plt.show()
@@ -186,10 +187,64 @@ def ex5():
 
 def ex6():
     a = np.ones((20, 25))
-    b = ar.c.map.add_zeros(a, bounds=(3, 4))
+    b = ar.map.add_zeros(a, bounds=(3, 4))
     print(b)
+
+
+def ex7():
+    theta = 51. * np.pi / 180.
+    PX = 50.
+    PZ = 10.
+    Nx = 400
+    Nz = 500
+
+    atmosphere = ar.Atmosphere.Standard(H=PZ)
+    atmosphere.integration_method = 'trapz'
+    atmosphere.angle = theta
+    atmosphere.horizontal_extent = PX  # km
+    atmosphere.use_storage = False
+
+    h_map = ar.Planck((PX, PX, PZ), (Nx, Nx, Nz)).h_map(K=100)
+
+    shift = atmosphere.dh * PZ / np.cos(theta) * np.sin(theta)
+    print(shift)
+    n = int(np.round(shift * len(h_map) / 2.))
+    print(n)
+    h_map = ar.map.add_zeros(h_map, bounds=(n, 0))
+    print(h_map.shape)
+    atmosphere.liquid_water = ar.Planck((PX + shift, PX, PZ), (Nx + 2 * n, Nx, Nz)).lw_dist(h_map)
+
+    brt = []
+    surface = ar.SmoothWaterSurface(polarization='H')
+    surface.angle = atmosphere.angle
+    start_time = time.time()
+    brt.append(np.asarray(ar.satellite.multi.brightness_temperature([22.2], atmosphere, surface)[0], dtype=float))
+    print(atmosphere.storage.keys())
+    print("--- %s seconds ---" % (time.time() - start_time))
+
+    surface = ar.SmoothWaterSurface(polarization='V')
+    surface.angle = atmosphere.angle
+    start_time = time.time()
+    brt.append(np.asarray(ar.satellite.multi.brightness_temperature([22.2], atmosphere, surface)[0], dtype=float))
+    print(atmosphere.storage.keys())
+    print("--- %s seconds ---" % (time.time() - start_time))
+
+    plt.figure('H polarization')
+    plt.title('H polarization')
+    plt.xlabel('X, nodes')
+    plt.ylabel('Y, nodes')
+    plt.imshow(brt[0])
+    plt.colorbar()
+
+    plt.figure('V polarization')
+    plt.title('V polarization')
+    plt.xlabel('X, nodes')
+    plt.ylabel('Y, nodes')
+    plt.imshow(brt[1])
+    plt.colorbar()
+    plt.show()
 
 
 if __name__ == '__main__':
 
-    ex6()
+    ex7()

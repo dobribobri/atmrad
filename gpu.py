@@ -78,7 +78,7 @@ class op_gpu(op_cpu):
         return tf.zeros_like(a, dtype=gpu_float)
 
     @staticmethod
-    def complex(real: float, imag: float) -> complex:
+    def complex(real: float, imag: float = 0.) -> complex:
         return tf.complex(real, imag)
 
     @staticmethod
