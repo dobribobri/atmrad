@@ -7,7 +7,7 @@ import time
 from scipy.special import gamma
 
 
-class Planck(Domain3D):
+class Plank(Domain3D):
     def __init__(self, kilometers: Tuple[float, float, float] = (50., 50., 10.),
                  nodes: Tuple[float, float, float] = (300, 300, 500),
                  clouds_bottom: float = 1.5):

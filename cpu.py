@@ -7,7 +7,7 @@ import warnings
 
 from domain import Domain3D
 from cloudforms import CylinderCloud
-from planck import Planck
+from plank import Plank
 
 
 class tf:
@@ -46,20 +46,6 @@ def storage(method):
             return obj.storage[key]
         return method(obj, frequency)
     return wrapper
-
-
-# def atmospheric(method):
-#     @wraps(method)
-#     def wrapper(obj: 'ar.Atmosphere', frequency: float) -> Union[Number, TensorLike]:
-#         key = (frequency, method.__qualname__)
-#         if hasattr(obj, 'outer'):
-#             obj = obj.outer
-#         if obj.use_storage:
-#             if key not in obj.storage:
-#                 obj.storage[key] = method(obj, frequency)
-#             return obj.storage[key]
-#         return method(obj, frequency)
-#     return wrapper
 
 
 class op_cpu:
@@ -161,7 +147,7 @@ class ar:
     class CylinderCloud(CylinderCloud):
         pass
 
-    class Planck(Planck):
+    class Plank(Plank):
         pass
 
     class map:

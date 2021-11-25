@@ -36,7 +36,7 @@ def block_averaging(array, kernel: Union[Tuple, int] = (10, 10), same_size=True)
 
 def ex1():
     atmosphere = ar.Atmosphere.Standard()
-    atmosphere.liquid_water = ar.Planck().get_lw_dist(K=100)
+    atmosphere.liquid_water = ar.Plank().get_lw_dist(K=100)
     atmosphere.integration_method = 'trapz'
     # dh = np.asarray([atmosphere.dh for _ in range(ar.op.len(atmosphere.temperature))])
     # atmosphere.dh = dh
@@ -68,7 +68,7 @@ def ex2():
     atmosphere.attenuation.summary(22.2)
     print(atmosphere.storage.keys())
 
-    atmosphere.liquid_water = ar.Planck().get_lw_dist(verbose=False)
+    atmosphere.liquid_water = ar.Plank().get_lw_dist(verbose=False)
     print(atmosphere.storage.keys())
 
 
@@ -149,7 +149,8 @@ def ex5():
         for i in range(ar.op.len(T)):
             s = colored('{:.2f} '.format(sa.temperature[i]), 'red') + colored('{:.2f}\t'.format(T[i]), 'green')
             s += colored('{:.2f} '.format(sa.pressure[i]), 'red') + colored('{:.2f}\t'.format(P[i]), 'green')
-            s += colored('{:.2f}% '.format(sa.relative_humidity[i]), 'red') + colored('{:.2f}%\t'.format(rel[i]), 'green')
+            s += colored('{:.2f}% '.format(sa.relative_humidity[i]), 'red') + colored('{:.2f}%\t'.format(rel[i]),
+                                                                                      'green')
             print(s)
         print('==================================================================================================')
         print()
@@ -199,7 +200,7 @@ def ex7():
     Nz = 500
     dh = PZ / Nz
 
-    h_map = ar.Planck((PX, PX, PZ), (Nx, Nx, Nz)).h_map(K=100)
+    h_map = ar.Plank((PX, PX, PZ), (Nx, Nx, Nz)).h_map(K=100)
 
     shift = dh * PZ / np.cos(theta) * np.sin(theta)
     n = int(np.round(shift * len(h_map) / 2.))
@@ -211,7 +212,7 @@ def ex7():
     atmosphere.angle = theta
     atmosphere.horizontal_extent = PX + shift  # km
     atmosphere.use_storage = False
-    atmosphere.liquid_water = ar.Planck((PX + shift, PX, PZ), (Nx + 2 * n, Nx, Nz)).lw_dist(h_map)
+    atmosphere.liquid_water = ar.Plank((PX + shift, PX, PZ), (Nx + 2 * n, Nx, Nz)).lw_dist(h_map)
 
     brt = []
     surface = ar.SmoothWaterSurface(polarization='H')
