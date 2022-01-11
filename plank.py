@@ -9,7 +9,7 @@ from scipy.special import gamma
 
 class Plank(Domain3D):
     def __init__(self, kilometers: Tuple[float, float, float] = (50., 50., 10.),
-                 nodes: Tuple[float, float, float] = (300, 300, 500),
+                 nodes: Tuple[int, int, int] = (300, 300, 500),
                  clouds_bottom: float = 1.5):
         """
         Модель Планка разрывной кучевой облачности в 3D
@@ -26,9 +26,10 @@ class Plank(Domain3D):
         return cls((domain.PX, domain.PY, domain.PZ),
                    (domain.Nx, domain.Ny, domain.Nz), clouds_bottom=clouds_bottom)
 
-    def h_map(self, Dm: float = 3., K: float = 100,
-              alpha: float = 1., beta: float = 0.5, eta: float = 1., seed: int = 42,
-              verbose=True) -> np.ndarray:
+    def cloudiness(self, Dm: float = 3., K: float = 100,
+                   alpha: float = 1., beta: float = 0.5, eta: float = 1., seed: int = 42,
+                   timeout: float = 30.,
+                   verbose=True) -> list:
         """
         :param Dm: максимальный диаметр облака, км
         :param K: нормировочный коэффициент, безразм.
@@ -36,6 +37,7 @@ class Plank(Domain3D):
         :param beta: безразм. коэфф.
         :param eta: безразм. коэфф.
         :param seed: состояние генератора случайных чисел (определяет положения облаков в 3D)
+        :param timeout: максимальное время ожидания
         :param verbose: вывод доп. информации
         :return: 2D-распределение мощности облаков в проекции на плоскость Oxy
         """
@@ -68,9 +70,28 @@ class Plank(Domain3D):
                     if not intersections:
                         cloudiness.append(cloud)
                         break
-                    if time.time() - start_time > 30:
+                    if time.time() - start_time > timeout:
                         raise TimeoutError('превышено допустимое время ожидания')
-        print()
+        if verbose:
+            print()
+        return cloudiness
+
+    def h_map(self, Dm: float = 3., K: float = 100,
+              alpha: float = 1., beta: float = 0.5, eta: float = 1., seed: int = 42,
+              timeout: float = 30.,
+              verbose=True) -> np.ndarray:
+        """
+        :param Dm: максимальный диаметр облака, км
+        :param K: нормировочный коэффициент, безразм.
+        :param alpha: безразм. коэфф.
+        :param beta: безразм. коэфф.
+        :param eta: безразм. коэфф.
+        :param seed: состояние генератора случайных чисел (определяет положения облаков в 3D)
+        :param timeout: максимальное время ожидания
+        :param verbose: вывод доп. информации
+        :return: 2D-распределение мощности облаков в проекции на плоскость Oxy
+        """
+        cloudiness = self.cloudiness(Dm, K, alpha, beta, eta, seed, timeout, verbose)
         hmap = np.zeros((self.Nx, self.Ny), dtype=float)
         for cloud in cloudiness:
             for x in np.arange(cloud.x - cloud.rx, cloud.x + cloud.rx, self.dx):
