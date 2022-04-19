@@ -3,9 +3,9 @@
 import os.path
 import sys
 
-# from cpu import ar
+from old.cpu import ar
 from cpu import ar as ar_cpu
-from gpu import ar
+# from gpu import ar
 
 import numpy as np
 import time
@@ -79,7 +79,7 @@ def ex3():
 
     freqs_ = np.linspace(10., 150., 100)
     start_time = time.time()
-    brt = ar.satellite.multi.brightness_temperature(freqs_, atmosphere, surface)
+    brt = [ar.satellite.brightness_temperature(f, atmosphere, surface) for f in freqs_]
     # brt = [ar.satellite.brightness_temperature(f, atmosphere, surface) for f in freqs_]
     print("--- %s seconds ---" % (time.time() - start_time))
 
@@ -527,4 +527,4 @@ def ex10():
 
 if __name__ == '__main__':
 
-    ex10()
+    ex3()

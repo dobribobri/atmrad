@@ -272,7 +272,8 @@ class ar:
             def callable(f: Callable, lower: int, upper: int,
                          dh: Union[float, Tensor1D], method='trapz') -> Union[Number, TensorLike]:
                 a = ar.op.as_tensor([f(i) for i in range(lower, upper + 1, 1)])
-                a = ar.op.transpose(a, axes=[1, 2, 0])
+                if ar.op.rank(a) == 3:
+                    a = ar.op.transpose(a, axes=[1, 2, 0])
                 return ar.c.integrate.limits(a, lower, upper, dh, method)
 
             class slantx:
@@ -320,7 +321,8 @@ class ar:
                              dh: Union[float, Tensor1D] = 10. / 500, PX: float = 50.,
                              theta: float = 0., method='trapz', mode=default_mode) -> Union[Number, TensorLike]:
                     a = ar.op.as_tensor([f(i) for i in range(lower, upper + 1, 1)])
-                    a = ar.op.transpose(a, axes=[1, 2, 0])
+                    if ar.op.rank(a) == 3:
+                        a = ar.op.transpose(a, axes=[1, 2, 0])
                     return ar.c.integrate.slantx.limits(a, lower, upper, dh, PX, theta, method, mode)
 
         class multi:
