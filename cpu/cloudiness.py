@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Union
+from typing import Union, Callable
 from cpu.core.domain import Domain3D, Column3D
 from cpu.core.cloudforms import *
 import numpy as np
@@ -11,7 +11,8 @@ def liquid_water(domain: Union[Domain3D, Column3D],
                  height_map2d: np.ndarray,
                  clouds_bottom: float = 1.5,
                  const_w: bool = False,
-                 mu0: float = 3.27, psi0: float = 0.67) -> np.ndarray:
+                 mu0: float = 3.27, psi0: float = 0.67,
+                 _w: Callable = lambda _h: 0.132574 * np.power(_h, 2.30215)) -> np.ndarray:
     """
     Расчет 3D поля водности по заданному 2D-распределению мощности облаков
 
@@ -21,11 +22,13 @@ def liquid_water(domain: Union[Domain3D, Column3D],
     :param const_w: если True, внутри облака водность не меняется с высотой; если False, используется модель Мазина
     :param mu0: безразмерный параметр
     :param psi0: безразмерный параметр
+    :param _w: зависимость водозапаса от мощности облака
     :return: поле водности в 3D
     """
     min_level = domain.k(clouds_bottom)
     max_level = domain.k(clouds_bottom + np.max(height_map2d))
-    w_map2d = 0.132574 * np.power(height_map2d, 2.30215)
+    # w_map2d = 0.132574 * np.power(height_map2d, 2.30215)
+    w_map2d = _w(height_map2d)
     w = np.zeros(domain.nodes, dtype=float)
     cond = np.logical_not(np.isclose(height_map2d, 0.))
 
@@ -56,8 +59,9 @@ class Cloudiness3D(Domain3D):
         return cls(domain.kilometers, domain.nodes, clouds_bottom)
 
     def liquid_water(self, height_map2d: np.ndarray, const_w: bool = False,
-                     mu0: float = 3.27, psi0: float = 0.67) -> np.ndarray:
-        return liquid_water(self, height_map2d, self.clouds_bottom, const_w, mu0, psi0)  # 3D array
+                     mu0: float = 3.27, psi0: float = 0.67,
+                     _w: Callable = lambda _h: 0.132574 * np.power(_h, 2.30215)) -> np.ndarray:
+        return liquid_water(self, height_map2d, self.clouds_bottom, const_w, mu0, psi0, _w)  # 3D array
 
 
 class CloudinessColumn(Column3D):
@@ -70,8 +74,9 @@ class CloudinessColumn(Column3D):
         return cls(column.PZ, column.Nz, clouds_bottom)
 
     def liquid_water(self, height: float, const_w: bool = False,
-                     mu0: float = 3.27, psi0: float = 0.67) -> np.ndarray:
-        return liquid_water(self, np.array([[height]]), self.clouds_bottom, const_w, mu0, psi0)  # 3D array
+                     mu0: float = 3.27, psi0: float = 0.67,
+                     _w: Callable = lambda _h: 0.132574 * np.power(_h, 2.30215)) -> np.ndarray:
+        return liquid_water(self, np.array([[height]]), self.clouds_bottom, const_w, mu0, psi0, _w)  # 3D array
 
 
 class Plank3D(Domain3D):
@@ -159,6 +164,7 @@ class Plank3D(Domain3D):
     def liquid_water(self, Dm: float = 3., K: float = 100,
                      alpha: float = 1., beta: float = 0.5, eta: float = 1., seed: int = 42,
                      const_w=False, mu0: float = 3.27, psi0: float = 0.67,
+                     _w: Callable = lambda _h: 0.132574 * np.power(_h, 2.30215),
                      timeout: float = 30., verbose=True) -> np.ndarray:
         return liquid_water(self, self.height_map2d(Dm, K, alpha, beta, eta, seed, timeout, verbose),
-                            self.clouds_bottom, const_w, mu0, psi0)  # 3D array
+                            self.clouds_bottom, const_w, mu0, psi0, _w)  # 3D array

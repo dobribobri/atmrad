@@ -4,7 +4,7 @@ import time
 import re
 
 from cpu.atmosphere import Atmosphere
-from cpu.cloudiness import Plank3D
+from cpu.cloudiness import Plank3D, CloudinessColumn
 from cpu.surface import SmoothWaterSurface
 import cpu.satellite as satellite
 
@@ -17,6 +17,42 @@ def test1():
     print(brts)
     brts = sa.downward.brightness_temperatures(freqs, background=True)
     print(brts)
+
+
+def test2():
+    plt.figure()
+
+    tbs = []
+    sa = Atmosphere.Standard(H=20, dh=20. / 500)
+    sa.integration_method = 'boole'
+    sa.horizontal_extent = 1.  # km
+
+    frequencies = np.linspace(10, 300., 500)
+
+    linestyles = ['-', '-.', '--']
+    for i, H in enumerate([0.35, 1.5, 3]):
+
+        W = 0.132574 * np.power(H, 2.30215)
+        sa.liquid_water = CloudinessColumn(kilometers_z=20., nodes_z=500, clouds_bottom=1.5).liquid_water(
+            H, const_w=False,
+        )
+        # tb = satellite.brightness_temperatures(frequencies, sa, SmoothWaterSurface(polarization='H'),
+        #                                        cosmic=True, n_workers=8)
+        tb = sa.downward.brightness_temperatures(frequencies, background=True, n_workers=8)
+
+        plt.plot(frequencies, tb[:, 0, 0],
+                 label='({}) W = {:.2f} kg/m'.format(i+1, W) + r'$^2$',
+                 linestyle=linestyles[i], color='black')
+        print('\rH = {} km ready'.format(H), end='  ', flush=True)
+
+    plt.xlabel(r'Frequency $\nu$, GHz')
+    plt.ylabel(r'Brightness temperature, К')
+    plt.xscale('log')
+    xticks = [10, 20, 30, 50, 90, 183, 300]
+    plt.xticks(ticks=xticks, labels=xticks)
+    plt.legend(frameon=False)
+    plt.savefig('img01.eps', dpi=300)
+    plt.show()
 
 
 def ex1():
@@ -86,4 +122,5 @@ if __name__ == '__main__':
 
     # test1()
     # ex1()
-    ex3()
+    # ex3()
+    test2()

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 from typing import Tuple, Union, List
 from functools import wraps
-from cpu.core.types import Tensor1D_or_3D, Tensor2D, cpu_float
+from cpu.core.types import Tensor1D_or_3D, Tensor1D_or_2D, Tensor2D, cpu_float
 from cpu.core.const import *
 import cpu.core.math as math
 from cpu.core.common import at, cx
@@ -173,8 +173,17 @@ class Atmosphere:
     def horizontal_extent(self, val: float):
         self._PX = val
 
+    @property
+    def Q(self):
+        return integrate.full(self._rho, self._dh, self.integration_method) / 10.
+
+    @property
+    def W(self):
+        return integrate.full(self._w, self._dh, self.integration_method)
+
     @classmethod
-    def Standard(cls, T0: float = 15., P0: float = 1013, rho0: float = 7.5,
+    def Standard(cls, T0: Union[float, Tensor1D_or_2D] = 15., P0: Union[float, Tensor1D_or_2D] = 1013,
+                 rho0: Union[float, Tensor1D_or_2D] = 7.5,
                  altitudes: np.ndarray = None, H: float = 10, dh: float = 10. / 500,
                  beta: Tuple[float, float, float] = (6.5, 1., 2.8),
                  HP: float = 7.7, Hrho: float = 2.1) -> 'Atmosphere':

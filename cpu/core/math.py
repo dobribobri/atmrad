@@ -8,6 +8,10 @@ def rank(a: Union[Number, TensorLike]) -> int:
     return np.ndim(a)
 
 
+def shape(a: TensorLike):
+    return np.shape(a)
+
+
 def sum_(a: TensorLike, axis: int = None) -> Union[Number, TensorLike]:
     return np.sum(a, axis=axis, dtype=cpu_float)
 
@@ -94,3 +98,11 @@ def stddev(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
 
 def variance(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
     return np.var(a, axis=axis)
+
+
+def move_axis(a: TensorLike, axis: int, destination: int) -> TensorLike:
+    return np.moveaxis(a, axis, destination)
+
+
+def linalg_solve(a: TensorLike, b: TensorLike):
+    return np.linalg.solve(a, b)

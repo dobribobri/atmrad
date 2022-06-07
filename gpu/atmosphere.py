@@ -172,6 +172,14 @@ class Atmosphere:
     def horizontal_extent(self, val: float):
         self._PX = val
 
+    @property
+    def Q(self):
+        return integrate.full(self._rho, self._dh, self.integration_method) / 10.
+
+    @property
+    def W(self):
+        return integrate.full(self._w, self._dh, self.integration_method)
+
     @classmethod
     def Standard(cls, T0: float = 15., P0: float = 1013, rho0: float = 7.5,
                  altitudes: np.ndarray = None, H: float = 10, dh: float = 10. / 500,

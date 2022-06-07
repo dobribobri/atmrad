@@ -19,16 +19,24 @@ def test1():
 
 
 def ex1():
+    Dm = 3.
+    K = 100
+    alpha = 1.
+    seed = 42
+    beta = -0.9
+    eta = 1.
     d = 500
     atmosphere = Atmosphere.Standard(H=10., dh=10./d)
-    atmosphere.liquid_water = Plank3D(nodes=(300, 300, d)).liquid_water(K=100)
+    atmosphere.liquid_water = Plank3D(nodes=(300, 300, d)).liquid_water(
+        Dm=Dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=30., verbose=True
+    )
 
     import dill
     with open('ex1_lw.bin', 'wb') as dump:
         dill.dump(atmosphere.liquid_water, dump)
 
     # atmosphere.effective_cloud_temperature = -2.
-    atmosphere.integration_method = 'trapz'
+    atmosphere.integration_method = 'boole'
 
     # atmosphere.angle = 30. * np.pi / 180.
     atmosphere.horizontal_extent = 50.  # km
@@ -44,10 +52,15 @@ def ex1():
     print(brt.dtype)
 
     plt.figure('brightness temperature')
-    plt.xlabel('X, nodes')
-    plt.ylabel('Y, nodes')
-
-    plt.imshow(np.asarray(brt, dtype=float).T)
+    plt.title('Brightness temperature (K) at 22.2 GHz')
+    ticks_pos = np.asarray([30, 60, 90, 120, 150, 180, 210, 240, 270])
+    ticks_labels = np.round(ticks_pos / 300. * 50, decimals=0)
+    ticks_labels = [int(i) for i in ticks_labels]
+    plt.xticks(ticks_pos, ticks_labels)
+    plt.yticks(ticks_pos, ticks_labels)
+    plt.xlabel('km')
+    plt.ylabel('km')
+    plt.imshow(np.asarray(brt, dtype=float))
     plt.colorbar()
     plt.savefig('ex1.png', dpi=300)
     plt.show()

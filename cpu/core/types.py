@@ -5,6 +5,6 @@ import numpy as np
 
 Number = Union[float, complex]
 TensorLike = Union[np.ndarray]
-Tensor1D = Tensor2D = Tensor3D = Tensor1D_or_3D = TensorLike
+Tensor1D = Tensor2D = Tensor3D = Tensor1D_or_3D = Tensor1D_or_2D = TensorLike
 
 cpu_float = np.float32
