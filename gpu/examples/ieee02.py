@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
         for kernel in kernels:
             datadict['w'].update({str(kernel): []})
-            datadict['delta'].update({str(kernel): {}})
+            datadict['delta'].update({str(kernel): defaultdict(list)})
 
         for i, dm in enumerate(DIAP):
             print('\r{:.2f}%'.format(i / (len(DIAP) - 1) * 100), end='  ', flush=True)
@@ -158,7 +158,6 @@ if __name__ == '__main__':
                     _w=lambda _h: wh_corr * 0.132574 * np.power(_h, 2.30215),
                 )
 
-                DELTA = defaultdict(list)
                 for j, nu in enumerate(freqs):
 
                     conv_brt = map2d.conv_averaging(brts[j], kernel=kernel)
@@ -169,13 +168,10 @@ if __name__ == '__main__':
                     solid_brt = np.asarray(solid_brt, dtype=float)
 
                     delta = solid_brt - conv_brt
-                    DELTA[nu].append([np.mean(delta),
-                                      np.min(delta), np.max(delta),
-                                      np.var(delta), np.std(delta),
-                                      np.max(delta) - np.min(delta)])
-
-                for key in DELTA.keys():
-                    datadict['delta'][str(kernel)].update({key: np.asarray(DELTA[key])})
+                    datadict['delta'][str(kernel)][nu].append([np.mean(delta),
+                                                               np.min(delta), np.max(delta),
+                                                               np.var(delta), np.std(delta),
+                                                               np.max(delta) - np.min(delta)])
 
         with open(os.path.join(project_folder, '{}.part'.format(str(ID).zfill(10))), 'wb') as dump:
             dill.dump(datadict, dump)
