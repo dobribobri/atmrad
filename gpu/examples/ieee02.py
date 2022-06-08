@@ -102,7 +102,6 @@ if __name__ == '__main__':
             datadict['w'].update({str(kernel): []})
             datadict['delta'].update({str(kernel): {}})
 
-        DELTA = defaultdict(list)
         for i, dm in enumerate(DIAP):
             print('\r{:.2f}%'.format(i / (len(DIAP) - 1) * 100), end='  ', flush=True)
 
@@ -159,6 +158,7 @@ if __name__ == '__main__':
                     _w=lambda _h: wh_corr * 0.132574 * np.power(_h, 2.30215),
                 )
 
+                DELTA = defaultdict(list)
                 for j, nu in enumerate(freqs):
 
                     conv_brt = map2d.conv_averaging(brts[j], kernel=kernel)
