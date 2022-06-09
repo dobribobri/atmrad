@@ -25,16 +25,13 @@ if __name__ == '__main__':
     # plt.show()
 
     Dm = 3.
-    K = 60
-    alpha = 0.5
+    K = 214
+    alpha = 1.
     seed = 42
-    beta = -0.9
+    beta = 0.5
     eta = 1.
 
     p = Plank3D(kilometers=(50., 50., 10.), nodes=(300, 300, 500), clouds_bottom=1.5)
-    clouds = p.generate_clouds(
-        Dm=Dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=1, verbose=True,
-    )
 
     #############################################################
     atmosphere = Atmosphere.Standard()
@@ -44,7 +41,8 @@ if __name__ == '__main__':
 
     plt.figure()
     plt.imshow(atmosphere.W)
-    plt.title(r'Liquid Water Content, kg/m$^2$')
+    h, w = atmosphere.W.shape
+    plt.title(r'Liquid Water Content, kg/m$^2$ {:.2f}%'.format(np.count_nonzero(atmosphere.W) / (h * w) * 100.))
     plt.xlabel('km')
     ticks_pos = np.asarray([30, 60, 90, 120, 150, 180, 210, 240, 270])
     ticks_labels = np.round(ticks_pos / 300. * 50, decimals=0)
@@ -56,6 +54,10 @@ if __name__ == '__main__':
     plt.savefig('pic.K{}_Dm{:.1f}_alpha{:.2f}_beta{:.2f}_eta{:.1f}.png'.format(K, Dm, alpha, beta, eta), dpi=300)
     plt.show()
     #############################################################
+
+    clouds = p.generate_clouds(
+        Dm=Dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=1, verbose=True,
+    )
 
     with open('Dm{}_K{}_alpha{}_seed{}.clouds.txt'.format(
         np.round(Dm, decimals=0), np.round(K, decimals=0), np.round(alpha, decimals=1), seed

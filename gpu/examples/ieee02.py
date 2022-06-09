@@ -56,6 +56,9 @@ if __name__ == '__main__':
     K = 100
     # beta = -0.9
     beta_range = np.arange(-0.9, 1.1, 0.1)
+
+    alpha = 1.0
+    eta = 1.0
     #########################################################################
 
     #########################################################################
@@ -81,6 +84,8 @@ if __name__ == '__main__':
 
                 'K': K,     # нормировочный коэффициент в модели Планка
                 'beta': beta,    # коэффициент beta из модели Планка
+                'alpha': alpha,
+                'eta': eta,
 
                 'dm_diap': [],  # диапазон значений Dm (список)
 
@@ -108,6 +113,7 @@ if __name__ == '__main__':
             try:
                 atmosphere.liquid_water = Plank3D(kilometers=(X, X, H), nodes=(N, N, d)).liquid_water(
                     K=K, Dm=dm, beta=beta,
+                    alpha=alpha, eta=eta,
                     _w=lambda _h: wh_corr * 0.132574 * np.power(_h, 2.30215),
                     verbose=False,
                     timeout=1,
