@@ -92,7 +92,7 @@ if __name__ == '__main__':
     _c1 = 2.30215
 
     #########################################################################
-    percentage = np.linspace(0.2, 0.7, 10, endpoint=True)
+    percentage = np.linspace(0.2, 0.7, 20, endpoint=True)
     #########################################################################
 
     start_time = datetime.datetime.now()
