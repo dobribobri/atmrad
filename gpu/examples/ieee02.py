@@ -55,7 +55,7 @@ if __name__ == '__main__':
     wh_corr = 1.  # корректировочный коэффициент для зависимости W от H
 
     # K = 100
-    K_range = np.arange(70, 214, 15)
+    K_range = np.arange(145, 214, 15)
     # beta = -0.9
     beta_range = np.arange(-0.9, 1.1, 0.2)
 
@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
                 },
                 'w': {
-                    'real_percentage': None,
+                    'real_percentage': [],
                     'total_max': [],    # максимальный водозапас во всей атмосферной ячейке при данном Dm
 
                 },
@@ -122,7 +122,7 @@ if __name__ == '__main__':
                         alpha=alpha, eta=eta,
                         _w=lambda _h: wh_corr * 0.132574 * np.power(_h, 2.30215),
                         verbose=False,
-                        timeout=1,
+                        timeout=30,
                     )
                 except TimeoutError:
                     print('\n...\n')
@@ -151,8 +151,7 @@ if __name__ == '__main__':
 
                 datadict['w']['total_max'].append(np.max(W))
 
-                sh, sw = W.shape
-                datadict['w']['real_percentage'] = np.count_nonzero(W) / (sh * sw) * 100.
+                datadict['w']['real_percentage'].append(np.count_nonzero(W) / (N * N) * 100.)
 
                 for kernel in kernels:
 
@@ -209,7 +208,7 @@ if __name__ == '__main__':
                                                                    np.var(delta), np.std(delta),
                                                                    np.max(delta) - np.min(delta)])
 
-            with open(os.path.join(project_folder, '{}.part'.format(str(ID).zfill(10))), 'wb') as dump:
+            with open(os.path.join(project_folder, '{}.part'.format(str(ID).zfill(5))), 'wb') as dump:
                 dill.dump(datadict, dump)
 
             # datadict.clear()

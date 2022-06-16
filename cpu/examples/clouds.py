@@ -24,28 +24,51 @@ if __name__ == '__main__':
     # plt.colorbar()
     # plt.show()
 
-    Dm = 3.
-    K = 214
-    alpha = 1.
+    X = 50     # km
+    res = 300
+    Dm = 1.448
+    dm = 0.01524
+    # K = ?
+    percentage = 0.7
+    alpha = 3.853
     seed = 42
-    beta = 0.5
-    eta = 1.
+    beta = 0.0
+    eta = 0.98
+    cl_bottom = 1.2192
 
-    p = Plank3D(kilometers=(50., 50., 10.), nodes=(300, 300, 500), clouds_bottom=1.5)
+    xi = -np.exp(-alpha * Dm) * (((alpha * Dm) ** 2) / 2 + alpha * Dm + 1) + \
+        np.exp(-alpha * dm) * (((alpha * dm) ** 2) / 2 + alpha * dm + 1)
+    print('xi ', xi)
+
+    K = 2 * np.power(alpha, 3) * (X * X * percentage) / (np.pi * xi)
+    print(K)
+
+    p = Plank3D(kilometers=(X, X, 20.), nodes=(res, res, 500), clouds_bottom=cl_bottom)
+    clouds = p.generate_clouds(
+        Dm=Dm, dm=dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=1., verbose=True
+    )
+
+    n_model = K / alpha * (np.exp(-alpha * dm) - np.exp(-alpha * Dm))
+    print('N ', len(clouds), n_model)
 
     #############################################################
     atmosphere = Atmosphere.Standard()
-    atmosphere.liquid_water = p.liquid_water(
-        Dm=Dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=30., verbose=True
-    )
+    hmap = p.height_map2d_(clouds)
+    atmosphere.liquid_water = p.liquid_water_(hmap2d=hmap, const_w=False)
+
+    print('% ', np.count_nonzero(hmap) / (res * res) * 100.,
+          np.sum(np.pi * np.power(np.array([cloud.rx for cloud in clouds]), 2)) / (X * X) * 100.)
+
+    print('Wmax\t', np.max(atmosphere.W))
 
     plt.figure()
     plt.imshow(atmosphere.W)
     h, w = atmosphere.W.shape
-    plt.title(r'Liquid Water Content, kg/m$^2$ {:.2f}%'.format(np.count_nonzero(atmosphere.W) / (h * w) * 100.))
+    plt.title(r'Liquid Water Content, kg/m$^2$ {:.2f}%'.format(np.count_nonzero(hmap) / (h * w) * 100.))
     plt.xlabel('km')
-    ticks_pos = np.asarray([30, 60, 90, 120, 150, 180, 210, 240, 270])
-    ticks_labels = np.round(ticks_pos / 300. * 50, decimals=0)
+    # ticks_pos = np.asarray([30, 60, 90, 120, 150, 180, 210, 240, 270])
+    ticks_pos = np.linspace(0, res, 10)
+    ticks_labels = np.round(ticks_pos / res * X, decimals=0)
     ticks_labels = [int(i) for i in ticks_labels]
     plt.xticks(ticks_pos, ticks_labels)
     plt.ylabel('km')
@@ -54,10 +77,6 @@ if __name__ == '__main__':
     plt.savefig('pic.K{}_Dm{:.1f}_alpha{:.2f}_beta{:.2f}_eta{:.1f}.png'.format(K, Dm, alpha, beta, eta), dpi=300)
     plt.show()
     #############################################################
-
-    clouds = p.generate_clouds(
-        Dm=Dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=1, verbose=True,
-    )
 
     with open('Dm{}_K{}_alpha{}_seed{}.clouds.txt'.format(
         np.round(Dm, decimals=0), np.round(K, decimals=0), np.round(alpha, decimals=1), seed

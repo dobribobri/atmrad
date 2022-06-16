@@ -89,11 +89,12 @@ class Plank3D(Domain3D):
     def from_domain(cls, domain: Domain3D, clouds_bottom: float = 1.5):
         return cls(domain.kilometers, domain.nodes, clouds_bottom)
 
-    def generate_clouds(self, Dm: float = 3., K: float = 100,
+    def generate_clouds(self, Dm: float = 3., dm: float = 0., K: float = 100,
                         alpha: float = 1., beta: float = 0.5, eta: float = 1., seed: int = 42,
                         timeout: float = 30., verbose=True) -> list:
         """
         :param Dm: максимальный диаметр облака, км
+        :param dm: минимально возможный диаметр облака в км
         :param K: нормировочный коэффициент, безразмерный
         :param alpha: безразмерный коэфф.
         :param beta: безразмерный коэфф.
@@ -101,19 +102,55 @@ class Plank3D(Domain3D):
         :param seed: состояние генератора случайных чисел (определяет положения облаков в 3D)
         :param timeout: максимальное время ожидания
         :param verbose: вывод доп. информации
-        :return: 2D-распределение мощности облаков в проекции на плоскость Oxy
+        :return: список облаков
         """
         np.random.seed(seed)
         clouds = []
+        # вариант 1 - неправильно
+        # r = np.sqrt(self.i(Dm) * self.i(Dm) + self.j(Dm) * self.j(Dm))
+        # steps = np.arange(Dm, dm, -(Dm - dm) / r)
+        # N = len(steps)
+        # for i, D in enumerate(steps):
+        #     if verbose:
+        #         print('\r{:.2f}%'.format((i + 1) / N * 100), end='', flush=True)
+        #     n = int(np.round(K * np.exp(-alpha * D)))
+        #     if n < 1:
+        #         n = 1
+        #     for k in range(n):
+        #         start_time = time.time()
+        #         while True:
+        #             x, y = np.random.uniform(0., self.PX), np.random.uniform(0., self.PY)
+        #             z = self.clouds_bottom
+        #             rx = ry = D / 2
+        #             H = eta * D * np.power(D / Dm, beta)
+        #             cloud = CylinderCloud((x, y, z), rx, ry, H)
+        #             if not cloud.belongs_q((self.PX, self.PY, self.PZ)):
+        #                 continue
+        #             intersections = False
+        #             for c in clouds:
+        #                 if not cloud.disjoint_q(c):
+        #                     intersections = True
+        #                     break
+        #             if not intersections:
+        #                 clouds.append(cloud)
+        #                 break
+        #             if time.time() - start_time > timeout:
+        #                 raise TimeoutError('timeout exceeded')
+
+        # вариант 4
         r = np.sqrt(self.i(Dm) * self.i(Dm) + self.j(Dm) * self.j(Dm))
-        steps = np.arange(Dm, 0, -Dm / r)
+        eps = (Dm - dm) / r
+        steps = np.arange(Dm, dm - eps, -eps)
         N = len(steps)
         for i, D in enumerate(steps):
             if verbose:
                 print('\r{:.2f}%'.format((i + 1) / N * 100), end='', flush=True)
-            n = int(np.round(K * np.exp(-alpha * D)))
+            n = int(np.round(
+                K / alpha * (np.exp(-alpha * D) - np.exp(-alpha * (D + eps)))
+            ))
             if n < 1:
-                n = 1
+                print('\nw: отсутствуют облака диаметром {}'.format(D))
+                continue
             for k in range(n):
                 start_time = time.time()
                 while True:
@@ -138,11 +175,21 @@ class Plank3D(Domain3D):
             print()
         return clouds
 
-    def height_map2d(self, Dm: float = 3., K: float = 100,
+    def height_map2d_(self, cloudiness: list) -> np.ndarray:
+        hmap = np.zeros((self.Nx, self.Ny), dtype=float)
+        for cloud in cloudiness:
+            for x in np.arange(cloud.x - cloud.rx, cloud.x + cloud.rx, self.dx):
+                for y in np.arange(cloud.y - cloud.ry, cloud.y + cloud.ry, self.dy):
+                    if cloud.includes_q((x, y, self.clouds_bottom)):
+                        hmap[self.i(x), self.j(y)] = cloud.height
+        return hmap  # 2D array
+
+    def height_map2d(self, Dm: float = 3., dm: float = 0., K: float = 100,
                      alpha: float = 1., beta: float = 0.5, eta: float = 1., seed: int = 42,
                      timeout: float = 30., verbose=True) -> np.ndarray:
         """
         :param Dm: максимальный диаметр облака, км
+        :param dm: минимально возможный диаметр облака в км
         :param K: нормировочный коэффициент, безразмерный
         :param alpha: безразмерный коэфф.
         :param beta: безразмерный коэфф.
@@ -152,19 +199,17 @@ class Plank3D(Domain3D):
         :param verbose: вывод доп. информации
         :return: 2D-распределение мощности облаков в проекции на плоскость Oxy
         """
-        cloudiness = self.generate_clouds(Dm, K, alpha, beta, eta, seed, timeout, verbose)
-        hmap = np.zeros((self.Nx, self.Ny), dtype=float)
-        for cloud in cloudiness:
-            for x in np.arange(cloud.x - cloud.rx, cloud.x + cloud.rx, self.dx):
-                for y in np.arange(cloud.y - cloud.ry, cloud.y + cloud.ry, self.dy):
-                    if cloud.includes_q((x, y, self.clouds_bottom)):
-                        hmap[self.i(x), self.j(y)] = cloud.height
-        return hmap     # 2D array
+        cloudiness = self.generate_clouds(Dm, dm, K, alpha, beta, eta, seed, timeout, verbose)
+        return self.height_map2d_(cloudiness)
 
-    def liquid_water(self, Dm: float = 3., K: float = 100,
+    def liquid_water_(self, hmap2d: np.ndarray, const_w=False, mu0: float = 3.27, psi0: float = 0.67,
+                      _w: Callable = lambda _h: 0.132574 * np.power(_h, 2.30215)) -> np.ndarray:
+        return liquid_water(self, hmap2d, self.clouds_bottom, const_w, mu0, psi0, _w)
+
+    def liquid_water(self, Dm: float = 3., dm: float = 0., K: float = 100,
                      alpha: float = 1., beta: float = 0.5, eta: float = 1., seed: int = 42,
                      const_w=False, mu0: float = 3.27, psi0: float = 0.67,
                      _w: Callable = lambda _h: 0.132574 * np.power(_h, 2.30215),
                      timeout: float = 30., verbose=True) -> np.ndarray:
-        return liquid_water(self, self.height_map2d(Dm, K, alpha, beta, eta, seed, timeout, verbose),
+        return liquid_water(self, self.height_map2d(Dm, dm, K, alpha, beta, eta, seed, timeout, verbose),
                             self.clouds_bottom, const_w, mu0, psi0, _w)  # 3D array
