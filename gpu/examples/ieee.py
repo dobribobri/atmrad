@@ -108,7 +108,7 @@ if __name__ == '__main__':
         print('xi\t', xi)
 
         for ID, required_percentage in enumerate(percentage):
-            print('Required %: {:.2f}'.format(required_percentage * 100.))
+            print('\n\nRequired %: {:.2f}'.format(required_percentage * 100.))
             K = 2 * np.power(alpha, 3) * (X * X * required_percentage) / (np.pi * xi)
             print('K\t', K)
 

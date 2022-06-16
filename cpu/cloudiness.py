@@ -157,7 +157,6 @@ class Plank3D(Domain3D):
                     x, y = np.random.uniform(0., self.PX), np.random.uniform(0., self.PY)
                     z = self.clouds_bottom
                     rx = ry = D / 2
-                    # print(eta, D, Dm, beta, eps)
                     H = eta * D * np.power(D / Dm, beta)
                     cloud = CylinderCloud((x, y, z), rx, ry, H)
                     if not cloud.belongs_q((self.PX, self.PY, self.PZ)):
