@@ -8,6 +8,10 @@ def rank(a: Union[Number, TensorLike]) -> int:
     return tf.rank(a)
 
 
+def shape(a: TensorLike):
+    return tf.shape(a)
+
+
 def sum_(a: TensorLike, axis: int = None) -> Union[Number, TensorLike]:
     return tf.reduce_sum(a, axis=axis)
 
@@ -94,3 +98,11 @@ def stddev(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
 
 def variance(a: TensorLike, axis=None) -> Union[Number, TensorLike]:
     return tf.math.reduce_variance(a, axis=axis)
+
+
+def move_axis(a: TensorLike, axis: int, destination: int) -> TensorLike:
+    return tf.experimental.numpy.moveaxis(a, axis, destination)
+
+
+def linalg_solve(a: TensorLike, b: TensorLike):
+    return tf.linalg.solve(a, b)

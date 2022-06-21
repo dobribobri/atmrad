@@ -85,7 +85,7 @@ def ex1():
 
 
 def ex3():
-    atmosphere = Atmosphere.Standard()
+    atmosphere = Atmosphere.Standard(H=20., dh=20./100)
     atmosphere.effective_cloud_temperature = -2.
     atmosphere.integration_method = 'simpson'
 
@@ -122,5 +122,5 @@ if __name__ == '__main__':
 
     # test1()
     # ex1()
-    # ex3()
-    test2()
+    ex3()
+    # test2()

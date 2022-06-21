@@ -1,16 +1,31 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
+import warnings
 import dill
 import datetime
 import numpy as np
 from collections import defaultdict
 
-# from gpu.core.math import as_tensor
 from gpu.atmosphere import Atmosphere
 from gpu.surface import SmoothWaterSurface
 from cpu.cloudiness import Plank3D, Cloudiness3D
 import gpu.satellite as satellite
 from cpu.utils import map2d
+from cpu.atmosphere import Atmosphere as cpuAtm
+from cpu.atmosphere import avg
+from cpu.weight_funcs import krho
+from cpu.core.static.weight_funcs import kw
+import gpu.core.math as math
+
+
+def append_stats(dest, arr, key):
+    dest['mean'][key].append(np.mean(arr))
+    dest['min'][key].append(np.min(arr))
+    dest['max'][key].append(np.max(arr))
+    dest['var'][key].append(np.var(arr))
+    dest['std'][key].append(np.std(arr))
+    dest['range'][key].append(np.max(arr) - np.min(arr))
 
 
 if __name__ == '__main__':
@@ -42,7 +57,7 @@ if __name__ == '__main__':
 
     # radiation parameters
     polarization = None
-    frequencies = [22.2, 36, 89]
+    frequencies = [22.2, 27.2, 36, 89]
 
     kernels = [int(a) for a in np.arange(6, 294+1, 6)]
     #########################################################################
@@ -71,16 +86,16 @@ if __name__ == '__main__':
     distributions = [
         {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
         {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
-        {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
+        # {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
         {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
         {'name': 'T6', 'alpha': 1.398, 'Dm': 3.376, 'dm': 0.03048, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 1.0668},
         {'name': 'T8', 'alpha': 1.485, 'Dm': 4.02, 'dm': 0.06096, 'eta': 1.2, 'beta': 0.4, 'cl_bottom': 1.3716},
-        {'name': 'T5', 'alpha': 2.051, 'Dm': 2.574, 'dm': 0.02286, 'eta': 0.85, 'beta': -0.13, 'cl_bottom': 1.11252},
-        {'name': 'T3', 'alpha': 2.361, 'Dm': 2.092, 'dm': 0.01524, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 0.82296},
+        # {'name': 'T5', 'alpha': 2.051, 'Dm': 2.574, 'dm': 0.02286, 'eta': 0.85, 'beta': -0.13, 'cl_bottom': 1.11252},
+        # {'name': 'T3', 'alpha': 2.361, 'Dm': 2.092, 'dm': 0.01524, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 0.82296},
         {'name': 'T9', 'alpha': 2.485, 'Dm': 2.656, 'dm': 0.04572, 'eta': 1.3, 'beta': 0.3, 'cl_bottom': 1.40208},
-        {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
-        {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
-        {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
+        # {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
+        # {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
+        # {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
     ]
     seed = 42
 
@@ -90,6 +105,25 @@ if __name__ == '__main__':
 
     _c0 = 0.132574
     _c1 = 2.30215
+
+    #########################################################################
+    # precomputes
+    sa = cpuAtm.Standard(T0, P0, rho0)
+    T_avg_down, T_avg_up, Tau_o, A, B, M = {}, {}, {}, {}, {}, {}
+    T_cosmic = 2.72548
+    for i, freq_pair in enumerate([(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]):
+        k_rho = [krho(sa, f) for f in freq_pair]
+        k_w = [kw(f, t=-2.) for f in freq_pair]
+        m = math.as_tensor([k_rho, k_w])
+        M[i] = math.transpose(m)
+
+        T_avg_down[i] = math.as_tensor([avg.downward.T(sa, nu) for nu in freq_pair])
+        T_avg_up[i] = math.as_tensor([avg.upward.T(sa, nu) for nu in freq_pair])
+        Tau_o[i] = math.as_tensor([sa.opacity.oxygen(nu) for nu in freq_pair])
+        R = math.as_tensor([surface.reflectivity(nu) for nu in freq_pair])
+        kappa = 1 - R
+        A[i] = (T_avg_down[i] - T_cosmic) * R
+        B[i] = T_avg_up[i] - T_avg_down[i] * R - math.as_tensor(surface_temperature + 273.15) * kappa
 
     #########################################################################
     percentage = np.linspace(0.2, 0.7, 20, endpoint=True)
@@ -153,12 +187,20 @@ if __name__ == '__main__':
 
             W = atmosphere.W
 
-            conv_w_stats = {'mean': [], 'min': [], 'max': [], 'var': [], 'std': [], 'range': []}
+            LWINIT = {'mean': [], 'min': [], 'max': [], 'var': [], 'std': [], 'range': []}
 
-            delta_conv_stats = {
+            BRTC = {
                 'mean': defaultdict(list), 'min': defaultdict(list), 'max': defaultdict(list),
                 'var': defaultdict(list), 'std': defaultdict(list), 'range': defaultdict(list),
             }
+
+            SOLID = BRTC.copy()
+            DTSB = BRTC.copy()
+
+            WBRT = BRTC.copy()
+            WSOLID = BRTC.copy()
+            DWSB = BRTC.copy()
+            DWSBI = BRTC.copy()
 
             print('Making convolution...')
             for kernel in kernels:
@@ -174,12 +216,12 @@ if __name__ == '__main__':
 
                 # свертка карты водозапаса с элементом разрешения выбранного размера
                 conv_w = map2d.conv_averaging(W, kernel=kernel)
-                conv_w_stats['mean'].append(np.mean(conv_w))
-                conv_w_stats['min'].append(np.min(conv_w))
-                conv_w_stats['max'].append(np.max(conv_w))
-                conv_w_stats['var'].append(np.var(conv_w))
-                conv_w_stats['std'].append(np.std(conv_w))
-                conv_w_stats['range'].append(np.max(conv_w) - np.min(conv_w))
+                LWINIT['mean'].append(np.mean(conv_w))
+                LWINIT['min'].append(np.min(conv_w))
+                LWINIT['max'].append(np.max(conv_w))
+                LWINIT['var'].append(np.var(conv_w))
+                LWINIT['std'].append(np.std(conv_w))
+                LWINIT['range'].append(np.max(conv_w) - np.min(conv_w))
 
                 # обратный переход от водозапаса к высотам с учетом сделанной ранее коррекции
                 conv_h = np.power(conv_w / _c0, 1. / _c1)
@@ -189,20 +231,63 @@ if __name__ == '__main__':
                     np.asarray([conv_h]), const_w=False, _w=lambda _H: _c0 * np.power(_H, _c1)
                 )
 
+                conv_brts = {}
+                solid_brts = {}
                 for j, nu in enumerate(frequencies):
                     conv_brt = map2d.conv_averaging(brts[j], kernel=kernel)
+                    append_stats(BRTC, conv_brt, nu)
+                    conv_brts[nu] = conv_brt
 
-                    solid_brt = satellite.brightness_temperature(nu, solid, surface, cosmic=True)
+                    solid_brt = satellite.brightness_temperature(nu, solid, surface, cosmic=True)[0]
                     solid_brt = np.asarray(solid_brt, dtype=float)
+                    append_stats(SOLID, solid_brt, nu)
+                    solid_brts[nu] = solid_brt
 
                     delta = solid_brt - conv_brt
+                    append_stats(DTSB, delta, nu)
 
-                    delta_conv_stats['mean'][nu].append(np.mean(delta))
-                    delta_conv_stats['min'][nu].append(np.min(delta))
-                    delta_conv_stats['max'][nu].append(np.max(delta))
-                    delta_conv_stats['var'][nu].append(np.var(delta))
-                    delta_conv_stats['std'][nu].append(np.std(delta))
-                    delta_conv_stats['range'][nu].append(np.max(delta) - np.min(delta))
+                append_stats(WBRT, [-1], frequencies[0])
+                append_stats(WSOLID, [-1], frequencies[0])
+                append_stats(DWSB, [-1], frequencies[0])
+                append_stats(DWSBI, [-1], frequencies[0])
+                for i, (nu1, nu2) in enumerate([(frequencies[0], frequencies[j]) for j in range(1, len(frequencies))]):
+                    a, b = A[i], B[i]
+                    t_avg_up = T_avg_up[i]
+                    mat = M[i]
+                    tau_o = Tau_o[i]
+                    conv_brt = math.as_tensor([conv_brts[nu1], conv_brts[nu2]])
+                    conv_brt = math.move_axis(conv_brt, 0, -1)
+
+                    D = b * b - 4 * a * (conv_brt - t_avg_up)
+                    tau_e = math.as_tensor(-math.log((-b + math.sqrt(D)) / (2 * a)))
+
+                    right = math.move_axis(tau_e - tau_o, 0, -1)
+
+                    sol = math.linalg_solve(mat, right)
+                    wbrt = np.asarray(sol[1, :], dtype=float)
+                    append_stats(WBRT, wbrt, nu2)
+
+                    ##################################################################################################
+                    solid_brt = np.asarray([solid_brts[nu1], solid_brts[nu2]])
+                    solid_brt = np.moveaxis(solid_brt, 0, -1)
+
+                    D = b * b - 4 * a * (solid_brt - t_avg_up)
+                    tau_e = math.as_tensor(-math.log((-b + math.sqrt(D)) / (2 * a)))
+
+                    right = math.move_axis(tau_e - tau_o, 0, -1)
+
+                    sol = math.linalg_solve(mat, right)
+                    wsolid = np.asarray(sol[1, :], dtype=float)
+                    append_stats(WSOLID, wsolid, nu2)
+
+                    delta = wsolid - wbrt
+                    append_stats(DWSB, delta, nu2)
+
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        delta = np.where(np.isclose(conv_w, 0.), sys.maxsize, delta / conv_w)
+
+                    append_stats(DWSBI, delta, nu2)
 
             data = {
                 'name': distr['name'],
@@ -254,21 +339,27 @@ if __name__ == '__main__':
                 'c0': _c0,
                 'c1': _c1,
 
-                'liquid_water': atmosphere.liquid_water,
+                # 'liquid_water': atmosphere.liquid_water,
 
                 'kernels': kernels,
 
                 'W': {
                     # 'map': W,
                     'total_max': np.max(W),
-                    'conv_stats': conv_w_stats,
+                    'LWINIT': LWINIT,
+                    'WBRT': WBRT,
+                    'WSOLID': WSOLID,
+                    'DWSB': DWSB,
+                    'DWSBI': DWSBI,
                 },
 
                 'frequencies': frequencies,
 
                 'brightness_temperature': {
                     # 'maps': brts,
-                    'delta_stats': delta_conv_stats,
+                    'BRTC': BRTC,
+                    'SOLID': SOLID,
+                    'DTSB': DTSB,
                 }
             }
 
