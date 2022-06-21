@@ -86,16 +86,17 @@ if __name__ == '__main__':
     distributions = [
         {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
         {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
-        # {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
         {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
         {'name': 'T6', 'alpha': 1.398, 'Dm': 3.376, 'dm': 0.03048, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 1.0668},
         {'name': 'T8', 'alpha': 1.485, 'Dm': 4.02, 'dm': 0.06096, 'eta': 1.2, 'beta': 0.4, 'cl_bottom': 1.3716},
-        # {'name': 'T5', 'alpha': 2.051, 'Dm': 2.574, 'dm': 0.02286, 'eta': 0.85, 'beta': -0.13, 'cl_bottom': 1.11252},
-        # {'name': 'T3', 'alpha': 2.361, 'Dm': 2.092, 'dm': 0.01524, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 0.82296},
         {'name': 'T9', 'alpha': 2.485, 'Dm': 2.656, 'dm': 0.04572, 'eta': 1.3, 'beta': 0.3, 'cl_bottom': 1.40208},
-        # {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
-        # {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
-        # {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
+        
+        {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
+        {'name': 'T5', 'alpha': 2.051, 'Dm': 2.574, 'dm': 0.02286, 'eta': 0.85, 'beta': -0.13, 'cl_bottom': 1.11252},
+        {'name': 'T3', 'alpha': 2.361, 'Dm': 2.092, 'dm': 0.01524, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 0.82296},
+        {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
+        {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
+        {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
     ]
     seed = 42
 
@@ -142,6 +143,8 @@ if __name__ == '__main__':
         print('xi\t', xi)
 
         for ID, required_percentage in enumerate(percentage):
+            if os.path.exists(os.path.join(folder, '{}_{}.part'.format(distr['name'], str(ID).zfill(4)))):
+                continue
             print('\n\nRequired %: {:.2f}'.format(required_percentage * 100.))
             K = 2 * np.power(alpha, 3) * (X * X * required_percentage) / (np.pi * xi)
             print('K\t', K)
@@ -187,20 +190,25 @@ if __name__ == '__main__':
 
             W = atmosphere.W
 
-            LWINIT = {'mean': [], 'min': [], 'max': [], 'var': [], 'std': [], 'range': []}
+            WINI = {'mean': [], 'min': [], 'max': [], 'var': [], 'std': [], 'range': []}
 
-            BRTC = {
+            template = {
                 'mean': defaultdict(list), 'min': defaultdict(list), 'max': defaultdict(list),
                 'var': defaultdict(list), 'std': defaultdict(list), 'range': defaultdict(list),
             }
 
-            SOLID = BRTC.copy()
-            DTSB = BRTC.copy()
+            BRTC = template.copy()
+            SOLD = template.copy()
+            DTSB = template.copy()
 
-            WBRT = BRTC.copy()
-            WSOLID = BRTC.copy()
-            DWSB = BRTC.copy()
-            DWSBI = BRTC.copy()
+            WBRT = template.copy()
+            WSOL = template.copy()
+            DWSB = template.copy()
+            DWBI = template.copy()
+            DWSI = template.copy()
+            DWSBI = template.copy()
+            DWBII = template.copy()
+            DWSII = template.copy()
 
             print('Making convolution...')
             for kernel in kernels:
@@ -216,12 +224,12 @@ if __name__ == '__main__':
 
                 # свертка карты водозапаса с элементом разрешения выбранного размера
                 conv_w = map2d.conv_averaging(W, kernel=kernel)
-                LWINIT['mean'].append(np.mean(conv_w))
-                LWINIT['min'].append(np.min(conv_w))
-                LWINIT['max'].append(np.max(conv_w))
-                LWINIT['var'].append(np.var(conv_w))
-                LWINIT['std'].append(np.std(conv_w))
-                LWINIT['range'].append(np.max(conv_w) - np.min(conv_w))
+                WINI['mean'].append(np.mean(conv_w))
+                WINI['min'].append(np.min(conv_w))
+                WINI['max'].append(np.max(conv_w))
+                WINI['var'].append(np.var(conv_w))
+                WINI['std'].append(np.std(conv_w))
+                WINI['range'].append(np.max(conv_w) - np.min(conv_w))
 
                 # обратный переход от водозапаса к высотам с учетом сделанной ранее коррекции
                 conv_h = np.power(conv_w / _c0, 1. / _c1)
@@ -240,16 +248,20 @@ if __name__ == '__main__':
 
                     solid_brt = satellite.brightness_temperature(nu, solid, surface, cosmic=True)[0]
                     solid_brt = np.asarray(solid_brt, dtype=float)
-                    append_stats(SOLID, solid_brt, nu)
+                    append_stats(SOLD, solid_brt, nu)
                     solid_brts[nu] = solid_brt
 
                     delta = solid_brt - conv_brt
                     append_stats(DTSB, delta, nu)
 
-                append_stats(WBRT, [-1], frequencies[0])
-                append_stats(WSOLID, [-1], frequencies[0])
-                append_stats(DWSB, [-1], frequencies[0])
-                append_stats(DWSBI, [-1], frequencies[0])
+                append_stats(WBRT, [sys.maxsize], frequencies[0])
+                append_stats(WSOL, [sys.maxsize], frequencies[0])
+                append_stats(DWSB, [sys.maxsize], frequencies[0])
+                append_stats(DWBI, [sys.maxsize], frequencies[0])
+                append_stats(DWSI, [sys.maxsize], frequencies[0])
+                append_stats(DWSBI, [sys.maxsize], frequencies[0])
+                append_stats(DWBII, [sys.maxsize], frequencies[0])
+                append_stats(DWSII, [sys.maxsize], frequencies[0])
                 for i, (nu1, nu2) in enumerate([(frequencies[0], frequencies[j]) for j in range(1, len(frequencies))]):
                     a, b = A[i], B[i]
                     t_avg_up = T_avg_up[i]
@@ -278,16 +290,23 @@ if __name__ == '__main__':
 
                     sol = math.linalg_solve(mat, right)
                     wsolid = np.asarray(sol[1, :], dtype=float)
-                    append_stats(WSOLID, wsolid, nu2)
+                    append_stats(WSOL, wsolid, nu2)
 
-                    delta = wsolid - wbrt
-                    append_stats(DWSB, delta, nu2)
+                    append_stats(DWSB, wsolid - wbrt, nu2)
+                    append_stats(DWBI, wbrt - conv_w, nu2)
+                    append_stats(DWSI, wsolid - conv_w, nu2)
 
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
-                        delta = np.where(np.isclose(conv_w, 0.), sys.maxsize, delta / conv_w)
 
-                    append_stats(DWSBI, delta, nu2)
+                        delta = np.where(np.isclose(conv_w, 0.), sys.maxsize, (wsolid - wbrt) / conv_w)
+                        append_stats(DWSBI, delta, nu2)
+
+                        delta = np.where(np.isclose(conv_w, 0.), sys.maxsize, (wbrt - conv_w) / conv_w)
+                        append_stats(DWBII, delta, nu2)
+
+                        delta = np.where(np.isclose(conv_w, 0.), sys.maxsize, (wsolid - conv_w) / conv_w)
+                        append_stats(DWSII, delta, nu2)
 
             data = {
                 'name': distr['name'],
@@ -346,11 +365,17 @@ if __name__ == '__main__':
                 'W': {
                     # 'map': W,
                     'total_max': np.max(W),
-                    'LWINIT': LWINIT,
+                    'WINI': WINI,
+
                     'WBRT': WBRT,
-                    'WSOLID': WSOLID,
+                    'WSOL': WSOL,
                     'DWSB': DWSB,
+                    'DWBI': DWBI,
+                    'DWSI': DWSI,
+
                     'DWSBI': DWSBI,
+                    'DWBII': DWBII,
+                    'DWSII': DWSII,
                 },
 
                 'frequencies': frequencies,
@@ -358,7 +383,7 @@ if __name__ == '__main__':
                 'brightness_temperature': {
                     # 'maps': brts,
                     'BRTC': BRTC,
-                    'SOLID': SOLID,
+                    'SOLD': SOLD,
                     'DTSB': DTSB,
                 }
             }
