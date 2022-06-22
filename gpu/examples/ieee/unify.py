@@ -59,7 +59,7 @@ with open('db.txt', 'w') as db:
             for key in keys:
                 s_init += '{} '.format(data[key])
 
-            s_init += '{:.4f} '.format(data['W']['total_max'])
+            s_init += '{} '.format(data['W']['total_max'])
 
             frequencies = data['frequencies']
             kernels = data['kernels']
@@ -69,7 +69,6 @@ with open('db.txt', 'w') as db:
                 s_pre += '{} '.format(int(kernel) // 6)
 
                 for key in stats:
-
                     s_pre += '{} '.format(data['W']['WINI'][key][k])
 
                 for nu in frequencies:
@@ -77,26 +76,34 @@ with open('db.txt', 'w') as db:
                     s += '{} '.format(nu)
 
                     for key in stats:
+                        s += '{} '.format(data['brightness_temperature']['BRTC'][key][nu][k])
+
+                    for key in stats:
+                        s += '{} '.format(data['brightness_temperature']['SOLD'][key][nu][k])
+
+                    for key in stats:
+                        s += '{} '.format(data['brightness_temperature']['DTSB'][key][nu][k])
+
                         ##########################################################################
 
-                        s += '{:.4f} '.format(data['brightness_temperature']['BRTC'][key][nu][k])
+                    for key in stats:
+                        s += '{} '.format(data['W']['WBRT'][key][nu][k])
 
-                        s += '{:.4f} '.format(data['brightness_temperature']['SOLD'][key][nu][k])
+                    for key in stats:
+                        s += '{} '.format(data['W']['WSOL'][key][nu][k])
 
-                        s += '{:.4f} '.format(data['brightness_temperature']['DTSB'][key][nu][k])
+                    for key in stats:
+                        s += '{} '.format(data['W']['DWSB'][key][nu][k])
 
-                        ##########################################################################
-
-                        s += '{:.4f} '.format(data['W']['WBRT'][key][nu][k])
-
-                        s += '{:.4f} '.format(data['W']['WSOL'][key][nu][k])
-
-                        s += '{:.4f} '.format(data['W']['DWSB'][key][nu][k])
-
-                        s += '{:.4f} '.format(data['W']['DWBI'][key][nu][k])
-                        s += '{:.4f} '.format(data['W']['DWSI'][key][nu][k])
-                        s += '{:.4f} '.format(data['W']['DWSBI'][key][nu][k])
-                        s += '{:.4f} '.format(data['W']['DWBII'][key][nu][k])
-                        s += '{:.4f} '.format(data['W']['DWSII'][key][nu][k])
+                    for key in stats:
+                        s += '{} '.format(data['W']['DWBI'][key][nu][k])
+                    for key in stats:
+                        s += '{} '.format(data['W']['DWSI'][key][nu][k])
+                    for key in stats:
+                        s += '{} '.format(data['W']['DWSBI'][key][nu][k])
+                    for key in stats:
+                        s += '{} '.format(data['W']['DWBII'][key][nu][k])
+                    for key in stats:
+                        s += '{} '.format(data['W']['DWSII'][key][nu][k])
 
                     db.write(s + '\n')

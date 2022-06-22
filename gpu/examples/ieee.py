@@ -19,6 +19,13 @@ from cpu.core.static.weight_funcs import kw
 import gpu.core.math as math
 
 
+def new_stats():
+    return {
+        'mean': defaultdict(list), 'min': defaultdict(list), 'max': defaultdict(list),
+        'var': defaultdict(list), 'std': defaultdict(list), 'range': defaultdict(list),
+    }
+
+
 def append_stats(dest, arr, key):
     dest['mean'][key].append(np.mean(arr))
     dest['min'][key].append(np.min(arr))
@@ -192,23 +199,23 @@ if __name__ == '__main__':
 
             WINI = {'mean': [], 'min': [], 'max': [], 'var': [], 'std': [], 'range': []}
 
-            template = {
-                'mean': defaultdict(list), 'min': defaultdict(list), 'max': defaultdict(list),
-                'var': defaultdict(list), 'std': defaultdict(list), 'range': defaultdict(list),
-            }
+            # template = {
+            #     'mean': defaultdict(list), 'min': defaultdict(list), 'max': defaultdict(list),
+            #     'var': defaultdict(list), 'std': defaultdict(list), 'range': defaultdict(list),
+            # }
 
-            BRTC = template.copy()
-            SOLD = template.copy()
-            DTSB = template.copy()
+            BRTC = new_stats()
+            SOLD = new_stats()
+            DTSB = new_stats()
 
-            WBRT = template.copy()
-            WSOL = template.copy()
-            DWSB = template.copy()
-            DWBI = template.copy()
-            DWSI = template.copy()
-            DWSBI = template.copy()
-            DWBII = template.copy()
-            DWSII = template.copy()
+            WBRT = new_stats()
+            WSOL = new_stats()
+            DWSB = new_stats()
+            DWBI = new_stats()
+            DWSI = new_stats()
+            DWSBI = new_stats()
+            DWBII = new_stats()
+            DWSII = new_stats()
 
             print('Making convolution...')
             for kernel in kernels:
