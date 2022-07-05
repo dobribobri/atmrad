@@ -266,6 +266,10 @@ if __name__ == '__main__':
 
             print('Making convolution...')
             for kernel in kernels:
+
+                if kernel >= nx:
+                    continue
+
                 elapsed = datetime.datetime.now() - start_time
                 days = elapsed.days
                 hours = elapsed.seconds // 3600
