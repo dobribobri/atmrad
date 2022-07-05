@@ -65,7 +65,7 @@ if __name__ == '__main__':
     # radiation parameters
     polarization = None
     frequencies = [22.2, 27.2, 36, 89]
-    # frequencies = [22.2]  # DEBUG
+    # frequencies = [22.2, 27.2]  # DEBUG
 
     kernels = [int(a) for a in np.arange(6, 294+1, 6)]
     #########################################################################
@@ -99,18 +99,18 @@ if __name__ == '__main__':
     # distribution parameters
     distributions = [
         {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
-        {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
-        {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
-        {'name': 'T6', 'alpha': 1.398, 'Dm': 3.376, 'dm': 0.03048, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 1.0668},
-        {'name': 'T8', 'alpha': 1.485, 'Dm': 4.02, 'dm': 0.06096, 'eta': 1.2, 'beta': 0.4, 'cl_bottom': 1.3716},
-        {'name': 'T9', 'alpha': 2.485, 'Dm': 2.656, 'dm': 0.04572, 'eta': 1.3, 'beta': 0.3, 'cl_bottom': 1.40208},
-        
-        {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
-        {'name': 'T5', 'alpha': 2.051, 'Dm': 2.574, 'dm': 0.02286, 'eta': 0.85, 'beta': -0.13, 'cl_bottom': 1.11252},
-        {'name': 'T3', 'alpha': 2.361, 'Dm': 2.092, 'dm': 0.01524, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 0.82296},
-        {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
-        {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
-        {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
+        # {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
+        # {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
+        # {'name': 'T6', 'alpha': 1.398, 'Dm': 3.376, 'dm': 0.03048, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 1.0668},
+        # {'name': 'T8', 'alpha': 1.485, 'Dm': 4.02, 'dm': 0.06096, 'eta': 1.2, 'beta': 0.4, 'cl_bottom': 1.3716},
+        # {'name': 'T9', 'alpha': 2.485, 'Dm': 2.656, 'dm': 0.04572, 'eta': 1.3, 'beta': 0.3, 'cl_bottom': 1.40208},
+        #
+        # {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
+        # {'name': 'T5', 'alpha': 2.051, 'Dm': 2.574, 'dm': 0.02286, 'eta': 0.85, 'beta': -0.13, 'cl_bottom': 1.11252},
+        # {'name': 'T3', 'alpha': 2.361, 'Dm': 2.092, 'dm': 0.01524, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 0.82296},
+        # {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
+        # {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
+        # {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
     ]
     seed = 42
 
@@ -143,7 +143,7 @@ if __name__ == '__main__':
         B[i] = T_avg_up[i] - T_avg_down[i] * R - math.as_tensor(surface_temperature + 273.15) * kappa
 
     #########################################################################
-    percentage = np.linspace(0.2, 0.7, 20, endpoint=True)
+    percentage = np.linspace(0.2, 0.7, 20, endpoint=True)[::-1]
     #########################################################################
 
     start_time = datetime.datetime.now()
@@ -205,21 +205,44 @@ if __name__ == '__main__':
                 brts.append(brt)
 
             # W = atmosphere.W
-            nx, _ = brts[0].shape
+            nx, ny = brts[0].shape
             if incline == 'left':
                 W = atmosphere.W[res-nx:, :]
             else:
                 W = atmosphere.W[:nx, :]
 
+            # # =========== TEST ===========
+            # print('\n\n=========== TEST ===========\n')
             # plt.figure('nu = {:.1f}'.format(frequencies[0]))
             # plt.imshow(brts[0])
             # plt.colorbar()
             # print('BRT SHAPE : ', brts[0].shape)
-            # plt.figure('W')
+            # plt.figure('W INITIAL')
             # plt.imshow(W)
             # plt.colorbar()
             # print('W SHAPE : ', W.shape)
+            #
+            # i, nu1, nu2 = 0, frequencies[0], frequencies[1]
+            # a, b = A[i], B[i]
+            # t_avg_up = T_avg_up[i]
+            # mat = M[i]
+            # tau_o = Tau_o[i]
+            # _brt = math.as_tensor([brts[0].flatten(), brts[1].flatten()])
+            # _brt = math.move_axis(_brt, 0, -1)
+            # D = b * b - 4 * a * (_brt - t_avg_up)
+            # tau_e = math.as_tensor(-math.log((-b + math.sqrt(D)) / (2 * a))) * np.cos(angle)
+            #
+            # right = math.move_axis(tau_e - tau_o, 0, -1)
+            #
+            # sol = math.linalg_solve(mat, right)
+            # wbrt = np.asarray(sol[1, :], dtype=float)
+            # print('wbrt RETR SHAPE : ', wbrt.shape)
+            # plt.figure('W RETR')
+            # plt.imshow(np.reshape(wbrt, (nx, ny)))
+            # plt.colorbar()
             # plt.show()
+            # exit(0)
+            # # =========== END TEST ===========
 
             WINI = {'mean': [], 'min': [], 'max': [], 'var': [], 'std': [], 'range': []}
 
