@@ -128,11 +128,24 @@ lw_tensor = Cloudiness3D(kilometers=(X, X, 15), nodes=(len(H), ny, nz),
                              np.asarray(H_tensor),
                              const_w=False, _w=lambda _H: _c0 * np.power(_H, _c1)
                         )
+
 atmosphere.liquid_water = lw_tensor
 Q_tensor = np.asarray([atmosphere.Q[0, :]] * len(H), dtype=np.float32)
 print('Q ', Q_tensor.shape)
 W_tensor = np.asarray(atmosphere.W, dtype=np.float32)
 print('W ', W_tensor.shape)
+
+from matplotlib import pyplot as plt
+plt.figure(figsize=(5, 6))
+plt.plot(lw_tensor[len(H)//3, 0, :], __grid, label='W = {:.2f}'.format(W_tensor[len(H)//3, 0]) + r' кг/м$^2$', linestyle='--')
+plt.plot(lw_tensor[len(H)//2, 0, :], __grid, label='W = {:.2f}'.format(W_tensor[len(H)//2, 0]) + r' кг/м$^2$', linestyle='-.')
+plt.plot(lw_tensor[-1, 0, :], __grid, label='W = {:.2f}'.format(W_tensor[-1, 0]) + r' кг/м$^2$', linestyle='-')
+plt.ylim((0, 8))
+plt.xlabel(r'Водность, кг/м$^3$')
+plt.ylabel('Высота, км')
+plt.legend()
+plt.savefig('figure002W.png', dpi=300)
+plt.show()
 
 # surfaceT_tensor = np.ones((len(H), ny), dtype=np.float32) * surface_temperature
 surfaceT_tensor = np.asarray([T_tensor[0, :, 0]] * len(H), dtype=np.float32)

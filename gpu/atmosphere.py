@@ -316,13 +316,20 @@ class Atmosphere:
                                           self._theta, self._PX, self.incline)
 
         @atmospheric
-        def summary(self: 'Atmosphere', frequency: float) -> Union[float, Tensor2D]:
+        def summary(self: 'Atmosphere', frequency: float, __theta: float = None) -> Union[float, Tensor2D]:
             """
             :return: полное поглощение в атмосфере (путем интегрирования). В неперах
             """
-            return dB2np * integrate.full(self.attenuation.summary(frequency),
+            if __theta is None:
+                _theta = self._theta
+                sec = 1.
+            else:
+                _theta = 0.
+                sec = 1. / np.cos(__theta)
+
+            return sec * dB2np * integrate.full(self.attenuation.summary(frequency),
                                           self._dh, self.integration_method,
-                                          self._theta, self._PX, self.incline)
+                                          _theta, self._PX, self.incline)
 
     # noinspection PyTypeChecker
     class downward:
@@ -333,20 +340,28 @@ class Atmosphere:
             self.outer = atmosphere
 
         @atmospheric
-        def brightness_temperature(self: 'Atmosphere', frequency: float,
+        def brightness_temperature(self: 'Atmosphere', frequency: float, __theta: float = None,
                                    background=True) -> Union[float, Tensor2D]:
             """
             Яркостная температура нисходящего излучения
 
             :param frequency: частота излучения в ГГц
+            :param __theta: угол наблюдения в радианах (deprecated)
             :param background: учитывать космический фон - реликтовое излучение (да/нет)
             """
-            g = dB2np * self.attenuation.summary(frequency)
+            if __theta is None:
+                _theta = self._theta
+                sec = 1.
+            else:
+                _theta = 0.
+                sec = 1. / np.cos(__theta)
+
+            g = sec * dB2np * self.attenuation.summary(frequency)
             T = self._T + 273.15
 
             def f(h):
                 integral, b = integrate.limits(g, 0, h, self._dh, self.integration_method,
-                                               self._theta, self._PX, self.incline,
+                                               _theta, self._PX, self.incline,
                                                boundaries=True)
                 return cx(at(T, h), b, h) * cx(at(g, h), b, h) * math.exp(-1 * integral)
 
@@ -355,7 +370,7 @@ class Atmosphere:
                                                    boundaries=True)
             add = 0.
             if background:
-                add = self.T_cosmic * math.exp(-1 * self.opacity.summary(frequency))
+                add = self.T_cosmic * math.exp(-1 * self.opacity.summary(frequency, __theta))
             return brt + add
 
     # noinspection PyTypeChecker
@@ -367,19 +382,28 @@ class Atmosphere:
             self.outer = atmosphere
 
         @atmospheric
-        def brightness_temperature(self: 'Atmosphere', frequency: float) -> Union[float, Tensor2D]:
+        def brightness_temperature(self: 'Atmosphere', frequency: float,
+                                   __theta: float = None) -> Union[float, Tensor2D]:
             """
             Яркостная температура восходящего излучения (без учета подстилающей поверхности)
 
             :param frequency: частота излучения в ГГц
+            :param __theta: угол наблюдения в радианах (deprecated)
             """
-            g = dB2np * self.attenuation.summary(frequency)
+            if __theta is None:
+                _theta = self._theta
+                sec = 1.
+            else:
+                _theta = 0.
+                sec = 1. / np.cos(__theta)
+
+            g = sec * dB2np * self.attenuation.summary(frequency)
             inf = math.len_(g) - 1
             T = self._T + 273.15
 
             def f(h):
                 integral, b = integrate.limits(g, h, inf, self._dh, self.integration_method,
-                                               self._theta, self._PX, self.incline,
+                                               _theta, self._PX, self.incline,
                                                boundaries=True)
                 return cx(at(T, h), b, h) * cx(at(g, h), b, h) * math.exp(-1 * integral)
 
@@ -394,27 +418,29 @@ class avg:
     # noinspection PyTypeChecker
     class downward:
         @staticmethod
-        def T(sa: Atmosphere, frequency: float) -> Union[float, Tensor2D]:
+        def T(sa: Atmosphere, frequency: float, __theta: float = None) -> Union[float, Tensor2D]:
             """
             Средняя эффективная температура нисходящего излучения атмосферы
 
             :param frequency: частота излучения в ГГц
+            :param __theta: угол наблюдения в радианах (deprecated)
             :param sa: стандартная атмосфера (объект Atmosphere)
             """
-            tb_down = sa.downward.brightness_temperature(frequency, background=False)
-            tau_exp = math.exp(-1 * sa.opacity.summary(frequency))
+            tb_down = sa.downward.brightness_temperature(frequency, __theta, background=False)
+            tau_exp = math.exp(-1 * sa.opacity.summary(frequency, __theta))
             return tb_down / (1. - tau_exp)
 
     # noinspection PyTypeChecker
     class upward:
         @staticmethod
-        def T(sa: Atmosphere, frequency: float) -> Union[float, Tensor2D]:
+        def T(sa: Atmosphere, frequency: float, __theta: float = None) -> Union[float, Tensor2D]:
             """
             Средняя эффективная температура восходящего излучения атмосферы
 
             :param frequency: частота излучения в ГГц
+            :param __theta: угол наблюдения в радианах (deprecated)
             :param sa: стандартная атмосфера (объект Atmosphere)
             """
-            tb_up = sa.upward.brightness_temperature(frequency)
-            tau_exp = math.exp(-1 * sa.opacity.summary(frequency))
+            tb_up = sa.upward.brightness_temperature(frequency, __theta)
+            tau_exp = math.exp(-1 * sa.opacity.summary(frequency, __theta))
             return tb_up / (1. - tau_exp)

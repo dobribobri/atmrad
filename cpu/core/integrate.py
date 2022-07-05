@@ -77,7 +77,7 @@ def limits(a: Tensor1D_or_3D, lower: int, upper: int,
             raise RuntimeError('too big angle for such an array')
 
         Delta = int(Ix - di)
-        b = math.zeros([Delta, Iy, Iz])
+        b = math.as_variable(math.zeros([Delta, Iy, Iz]))
 
         START, STOP = [], []
         if incline == 'left':

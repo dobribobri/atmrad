@@ -44,6 +44,10 @@ def tan(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
     return np.tan(a)
 
 
+def sec(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+    return 1. / np.cos(a)
+
+
 def sqrt(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
     return np.sqrt(a)
 
