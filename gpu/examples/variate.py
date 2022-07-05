@@ -75,7 +75,7 @@ if __name__ == '__main__':
         #########################################################################
 
         # create project folder
-        folder = 'ieee_{}'.format(str(np.round(angle / np.pi * 180., decimals=0)).zfill(3))
+        folder = 'ieee_{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(3))
         if not os.path.exists(folder):
             os.makedirs(folder)
 
