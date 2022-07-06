@@ -75,7 +75,7 @@ if __name__ == '__main__':
         #########################################################################
 
         # create project folder
-        folder = 'ieee_{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(3))
+        folder = 'ieee_{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
         if not os.path.exists(folder):
             os.makedirs(folder)
 
@@ -269,10 +269,13 @@ if __name__ == '__main__':
                 DWSII = new_stats()
 
                 print('Making convolution...')
+                _kernels = []
                 for kernel in kernels:
 
                     if kernel >= nx:
                         continue
+
+                    _kernels.append(kernel)
 
                     elapsed = datetime.datetime.now() - start_time
                     days = elapsed.days
@@ -422,7 +425,7 @@ if __name__ == '__main__':
 
                     # 'liquid_water': atmosphere.liquid_water,
 
-                    'kernels': kernels,
+                    'kernels': np.asarray(_kernels),
 
                     'W': {
                         # 'map': W,

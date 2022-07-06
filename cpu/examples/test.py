@@ -2,9 +2,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 import time
 import re
+from collections import defaultdict
 
 from cpu.atmosphere import Atmosphere
-from cpu.cloudiness import Plank3D, CloudinessColumn
+from cpu.cloudiness import Plank3D, CloudinessColumn, Cloudiness3D
 from cpu.surface import SmoothWaterSurface
 import cpu.satellite as satellite
 
@@ -30,7 +31,7 @@ def test2():
     frequencies = np.linspace(10, 300., 500)
 
     linestyles = ['-', '-.', '--']
-    for i, H in enumerate([0.35, 1.5, 3]):
+    for i, H in enumerate([0.0, 1.5, 3]):
 
         W = 0.132574 * np.power(H, 2.30215)
         sa.liquid_water = CloudinessColumn(kilometers_z=20., nodes_z=500, clouds_bottom=1.5).liquid_water(
@@ -47,7 +48,7 @@ def test2():
 
     plt.xlabel(r'Frequency $\nu$, GHz')
     plt.ylabel(r'Brightness temperature, К')
-    plt.xscale('log')
+    # plt.xscale('log')
     xticks = [10, 20, 30, 50, 90, 183, 300]
     plt.xticks(ticks=xticks, labels=xticks)
     plt.legend(frameon=False)
@@ -118,9 +119,78 @@ def ex3():
     plt.show()
 
 
+def ex4():
+
+    # domain parameters
+    H = 20.  # высота атмосферы
+    d = 100  # дискретизация по высоте
+
+    # observation parameters
+    integration_method = 'trapz'
+
+    # atmosphere parameters
+    T0 = 15.
+    P0 = 1013
+    rho0 = 7.5
+
+    # surface parameters
+    surface_temperature = 15.
+    surface_salinity = 0.
+
+    # radiation parameters
+    polarization = None
+    frequencies = [22.2, 27.2, 36, 89]
+
+    ###
+    _c0 = 0.132574
+    _c1 = 2.30215
+
+    cl_bottom = 1.5
+    ###
+
+    w = np.asarray([0, 2, 5])
+
+    ###
+
+    solid = Atmosphere.Standard(H=H, dh=H / d, T0=T0, P0=P0, rho0=rho0)  # для атмосферы со сплошной облачностью
+    solid.integration_method = integration_method
+
+    surface = SmoothWaterSurface(temperature=surface_temperature,
+                                 salinity=surface_salinity,
+                                 polarization=polarization)  # модель гладкой водной поверхности
+
+    h = np.power(w / _c0, 1. / _c1)
+
+    solid.liquid_water = Cloudiness3D(kilometers=(1, len(h), H),
+                                      nodes=(1, len(h), d), clouds_bottom=cl_bottom).liquid_water(
+        np.asarray([h]), const_w=False, _w=lambda _H: _c0 * np.power(_H, _c1)
+    )
+
+    brts = {}
+    for nu in frequencies:
+        brts[nu] = []
+        for THETA in np.linspace(0, 51, 10):
+            angle = THETA * np.pi / 180.  # зенитный угол наблюдения, по умолчанию: 0
+            surface.angle = angle
+            brt = satellite.brightness_temperature(nu, solid, surface, cosmic=True, __theta=angle)[0]
+            brts[nu].append(brt)
+        brts[nu] = np.asarray(brts[nu])
+
+    plt.figure()
+    plt.plot(np.linspace(0, 51, 10), brts[22.2][:, 0], label=r'22.2 GHz, 0 kg$\cdot$m$^{-2}$', linestyle='-')
+    plt.plot(np.linspace(0, 51, 10), brts[22.2][:, 1], label=r'22.2 GHz, 2 kg$\cdot$m$^{-2}$', linestyle='-')
+    # plt.plot(np.linspace(0, 51, 10), brts[22.2][:, 2], label=r'22.2 GHz, 5 kg$\cdot$m$^{-2}$', linestyle='-')
+
+    plt.plot(np.linspace(0, 51, 10), brts[36][:, 0], label=r'27.2 GHz, 0 kg$\cdot$m$^{-2}$', linestyle='--')
+    plt.plot(np.linspace(0, 51, 10), brts[36][:, 1], label=r'27.2 GHz, 2 kg$\cdot$m$^{-2}$', linestyle='--')
+    plt.legend(frameon=False)
+    plt.show()
+
+
 if __name__ == '__main__':
 
     # test1()
     # ex1()
-    ex3()
+    # ex3()
     # test2()
+    ex4()
