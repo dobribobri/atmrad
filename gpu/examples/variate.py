@@ -201,12 +201,17 @@ if __name__ == '__main__':
 
                 print('Calculating brightness temperatures...')
                 brts = []
+                taus = []
                 for nu in frequencies:
 
                     brt = satellite.brightness_temperature(nu, atmosphere, surface, cosmic=True)
 
                     brt = np.asarray(brt, dtype=float)
                     brts.append(brt)
+
+                    tau = atmosphere.opacity.summary(nu)
+                    tau = np.asarray(tau, dtype=float)
+                    taus.append(tau)
 
                 # W = atmosphere.W
                 nx, ny = brts[0].shape
@@ -254,6 +259,10 @@ if __name__ == '__main__':
                 #     'mean': defaultdict(list), 'min': defaultdict(list), 'max': defaultdict(list),
                 #     'var': defaultdict(list), 'std': defaultdict(list), 'range': defaultdict(list),
                 # }
+
+                OPBC = new_stats()
+                OPSD = new_stats()
+                DOSB = new_stats()
 
                 BRTC = new_stats()
                 SOLD = new_stats()
@@ -318,6 +327,14 @@ if __name__ == '__main__':
 
                         delta = solid_brt - conv_brt
                         append_stats(DTSB, delta, nu)
+
+                        conv_tau = map2d.conv_averaging(taus[j], kernel=kernel)
+                        append_stats(OPBC, conv_tau, nu)
+                        solid_tau = solid.opacity.summary(nu, __theta=angle)[0]
+                        solid_tau = np.asarray(solid_tau, dtype=float)
+                        append_stats(OPSD, solid_tau, nu)
+                        delta = solid_tau - conv_tau
+                        append_stats(DOSB, delta, nu)
 
                     append_stats(WBRT, [sys.maxsize], frequencies[0])
                     append_stats(WSOL, [sys.maxsize], frequencies[0])
@@ -456,6 +473,12 @@ if __name__ == '__main__':
                         'BRTC': BRTC,
                         'SOLD': SOLD,
                         'DTSB': DTSB,
+                    },
+
+                    'opacity': {
+                        'OPBC': OPBC,
+                        'OPSD': OPSD,
+                        'DOSB': DOSB,
                     }
                 }
 
