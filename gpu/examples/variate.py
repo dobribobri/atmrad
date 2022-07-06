@@ -18,7 +18,7 @@ from cpu.weight_funcs import krho
 from cpu.core.static.weight_funcs import kw
 import gpu.core.math as math
 
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 
 
 def new_stats():
@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     THETAS = [0., 10., 20., 30., 40., 51.]
 
-    for THETA in THETAS:
+    for THETA in THETAS[::-1]:
 
         #########################################################################
         # domain parameters
@@ -71,7 +71,7 @@ if __name__ == '__main__':
         frequencies = [22.2, 27.2, 36, 89]
         # frequencies = [22.2, 27.2]  # DEBUG
 
-        kernels = [int(a) for a in np.arange(6, 294+1, 6)]
+        kernels = [int(a) for a in np.arange(6, res+1, 6)]
         #########################################################################
 
         # create project folder
@@ -281,7 +281,7 @@ if __name__ == '__main__':
                 _kernels = []
                 for kernel in kernels:
 
-                    if kernel >= nx:
+                    if kernel > nx:
                         continue
 
                     _kernels.append(kernel)
