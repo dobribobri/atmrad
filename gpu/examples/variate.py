@@ -330,7 +330,7 @@ if __name__ == '__main__':
 
                         conv_tau = map2d.conv_averaging(taus[j], kernel=kernel)
                         append_stats(OPBC, conv_tau, nu)
-                        solid_tau = solid.opacity.summary(nu, __theta=angle)[0]
+                        solid_tau = solid.opacity.summary(nu, angle)[0]
                         solid_tau = np.asarray(solid_tau, dtype=float)
                         append_stats(OPSD, solid_tau, nu)
                         delta = solid_tau - conv_tau
