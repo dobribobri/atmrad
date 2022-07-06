@@ -69,9 +69,10 @@ if __name__ == '__main__':
         # radiation parameters
         polarization = None
         frequencies = [22.2, 27.2, 36, 89]
-        # frequencies = [22.2, 27.2]  # DEBUG
+        # frequencies = [22.2, 27.2]
 
-        kernels = [int(a) for a in np.arange(6, res+1, 6)]
+        # kernels = [int(a) for a in np.arange(6, res+1, 6)]
+        kernels = [60]
         #########################################################################
 
         # create project folder
