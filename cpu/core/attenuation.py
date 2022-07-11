@@ -12,21 +12,26 @@ import cpu.core.static.weight_funcs as wf
 
 
 def oxygen(frequency: float,
-           T: Union[float, TensorLike], P: Union[float, TensorLike]) -> Union[float, TensorLike]:
+           T: Union[float, TensorLike], P: Union[float, TensorLike],
+           rho: Union[float, TensorLike] = None, approx: bool = False) -> Union[float, TensorLike]:
     """
     Копия static.p676.gamma_oxygen(...)
 
     :param frequency: частота излучения в ГГц
     :param T: термодинамическая температура, градусы Цельсия
     :param P: атмосферное давление, мбар или гПа
+    :param rho: абсолютная влажность, г/м^3
+    :param approx: расчет по приближенной формуле
     :return: погонный коэффициент поглощения в кислороде (Дб/км)
     """
-    return p676.gamma_oxygen(frequency, T, P)
+    if approx:
+        return p676.gamma_oxygen_approx(frequency, T, P)
+    return p676.gamma_oxygen(frequency, T, P, rho)
 
 
 def water_vapor(frequency: float,
                 T: Union[float, TensorLike], P: Union[float, TensorLike],
-                rho: Union[float, TensorLike]) -> Union[float, TensorLike]:
+                rho: Union[float, TensorLike], approx: bool = False) -> Union[float, TensorLike]:
     """
     Копия static.p676.gamma_water_vapor(...)
 
@@ -34,8 +39,11 @@ def water_vapor(frequency: float,
     :param T: термодинамическая температура, градусы Цельсия
     :param P: атмосферное давление, мбар или гПа
     :param rho: абсолютная влажность, г/м^3
+    :param approx: расчет по приближенной формуле
     :return: погонный коэффициент поглощения в водяном паре (Дб/км)
     """
+    if approx:
+        return p676.gamma_water_vapor_approx(frequency, T, P, rho)
     return p676.gamma_water_vapor(frequency, T, P, rho)
 
 

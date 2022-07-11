@@ -23,10 +23,11 @@ def test1():
 def test2():
     plt.figure()
 
-    tbs = []
-    sa = Atmosphere.Standard(H=20, dh=20. / 500)
-    sa.integration_method = 'boole'
+    _H, _d = 20., 500
+    sa = Atmosphere.Standard(H=_H, dh=_H / _d)
+    sa.integration_method = 'trapz'
     sa.horizontal_extent = 1.  # km
+    sa.approx = True
 
     frequencies = np.linspace(10, 300., 500)
 
@@ -34,12 +35,15 @@ def test2():
     for i, H in enumerate([0.0, 1.5, 3]):
 
         W = 0.132574 * np.power(H, 2.30215)
-        sa.liquid_water = CloudinessColumn(kilometers_z=20., nodes_z=500, clouds_bottom=1.5).liquid_water(
+        sa.liquid_water = CloudinessColumn(kilometers_z=_H, nodes_z=_d, clouds_bottom=1.5).liquid_water(
             H, const_w=False,
         )
-        # tb = satellite.brightness_temperatures(frequencies, sa, SmoothWaterSurface(polarization='H'),
-        #                                        cosmic=True, n_workers=8)
-        tb = sa.downward.brightness_temperatures(frequencies, background=True, n_workers=8)
+        # print(sa.attenuation.summary(22.2))
+        # exit(0)
+
+        tb = satellite.brightness_temperatures(frequencies, sa, SmoothWaterSurface(polarization='H'),
+                                               cosmic=True, n_workers=8)
+        # tb = sa.downward.brightness_temperatures(frequencies, background=True, n_workers=8)
 
         plt.plot(frequencies, tb[:, 0, 0],
                  label='({}) W = {:.2f} kg/m'.format(i+1, W) + r'$^2$',
@@ -48,11 +52,11 @@ def test2():
 
     plt.xlabel(r'Frequency $\nu$, GHz')
     plt.ylabel(r'Brightness temperature, К')
-    # plt.xscale('log')
+    plt.xscale('log')
     xticks = [10, 20, 30, 50, 90, 183, 300]
     plt.xticks(ticks=xticks, labels=xticks)
     plt.legend(frameon=False)
-    plt.savefig('img01.eps', dpi=300)
+    plt.savefig('mazin_approx_H20km.png', dpi=300)
     plt.show()
 
 
@@ -192,5 +196,5 @@ if __name__ == '__main__':
     # test1()
     # ex1()
     # ex3()
-    # test2()
-    ex4()
+    test2()
+    # ex4()
