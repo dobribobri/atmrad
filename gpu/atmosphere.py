@@ -78,6 +78,7 @@ class Atmosphere:
         self.integration_method = 'boole'   # метод интегрирования
         self._use_tcl = False   # в расчетах использовать эффективную температуру облаков
         self.T_cosmic = 2.7    # температура реликтового фона в К
+        self.approx = True  # вычисление коэффициентов затухания по приближенным формулам
 
         for name, value in kwargs.items():
             self.__setattr__(name, value)
@@ -247,7 +248,7 @@ class Atmosphere:
             :param frequency: частота излучения в ГГц
             :return: погонный коэффициент поглощения в кислороде (Дб/км)
             """
-            return attenuation.oxygen(frequency, self._T, self._P)
+            return attenuation.oxygen(frequency, self._T, self._P, self.approx)
 
         @atmospheric
         def water_vapor(self: 'Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:
@@ -257,7 +258,7 @@ class Atmosphere:
             :param frequency: частота излучения в ГГц
             :return: погонный коэффициент поглощения в водяном паре (Дб/км)
             """
-            return attenuation.water_vapor(frequency, self._T, self._P, self._rho)
+            return attenuation.water_vapor(frequency, self._T, self._P, self._rho, self.approx)
 
         @atmospheric
         def liquid_water(self: 'Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:

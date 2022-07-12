@@ -3,6 +3,7 @@ from typing import Union
 from gpu.core.types import TensorLike, Tensor2D
 from cpu.core.const import *
 import gpu.core.math as math
+import cpu.core.static.lines as lines
 
 """
 Рекомендация Международного Союза Электросвязи Rec.ITU-R P.676-3
@@ -37,7 +38,7 @@ def H2(frequency: float, rainQ: bool = False) -> float:
                  2.5 / ((f - 325.4) * (f - 325.4) + 4))
 
 
-def gamma_oxygen(frequency: float,
+def gamma_oxygen_approx(frequency: float,
                  T: Union[float, TensorLike], P: Union[float, TensorLike]) -> Union[float, TensorLike]:
     """
     :param frequency: частота излучения в ГГц
@@ -59,13 +60,13 @@ def gamma_oxygen(frequency: float,
                  0.28 * rt * rt / ((f - 118.75) * (f - 118.75) + 2.84 * rp * rp * rt * rt)) * \
                 f * f * rp * rp * rt * rt / 1000
     elif 57 < f < 63:
-        gamma = (f - 60) * (f - 63) / 18 * gamma_oxygen(57., T, P) - \
+        gamma = (f - 60) * (f - 63) / 18 * gamma_oxygen_approx(57., T, P) - \
                 1.66 * rp * rp * math.pow_(rt, 8.5) * (f - 57) * (f - 63) + \
-                (f - 57) * (f - 60) / 18 * gamma_oxygen(63., T, P)
+                (f - 57) * (f - 60) / 18 * gamma_oxygen_approx(63., T, P)
     return gamma
 
 
-def gamma_water_vapor(frequency: float,
+def gamma_water_vapor_approx(frequency: float,
                       T: Union[float, TensorLike], P: Union[float, TensorLike],
                       rho: Union[float, TensorLike]) -> Union[float, TensorLike]:
     """
@@ -90,6 +91,89 @@ def gamma_water_vapor(frequency: float,
     return gamma
 
 
+def __N_d(f: float,
+          th: Union[float, TensorLike], p: Union[float, TensorLike],
+          d: Union[float, TensorLike]):
+    return f * p * th * th * (
+        (6.4 / 100000) / (d * (1 + (f / d) * (f / d))) +
+        (1.4 / 1000000000000 * p * math.pow_(th, 1.5)) / (1 + 1.9 / 100000 * math.pow_(f, 1.5))
+    )
+
+
+def __N_oxygen(f: float,
+               t: Union[float, TensorLike], p: Union[float, TensorLike],
+               rho: Union[float, TensorLike]):
+    e = rho * t / 216.7
+    th = 300 / t
+    N = 0.
+    _c_1 = p * th * th * th / 10000000
+    _c_2 = 1. - th
+    _c_3 = 1.1 * e * th
+    _c_4 = (p + e) * math.pow_(th, 0.8) / 10000
+    for i, f_i in enumerate(lines.oxygen.keys()):
+        a = lines.oxygen[f_i]
+        S_i = a[1] * _c_1 * math.exp(a[2] * _c_2)
+        df_i = a[3] / 10000 * (p * math.pow_(th, 0.8 - a[4]) + _c_3)
+        df_i = math.sqrt(df_i * df_i + 2.25 / 1000000)
+        delta_i = (a[5] + a[6] * th) * _c_4
+        F_i = f / f_i * (
+            (df_i - delta_i * (f_i - f)) / ((f_i - f) * (f_i - f) + df_i * df_i) +
+            (df_i - delta_i * (f_i + f)) / ((f_i + f) * (f_i + f) + df_i * df_i)
+        )
+        N = N + S_i * F_i
+    d = 5.6 * _c_4
+    return N + __N_d(f, th, p, d)
+
+
+def gamma_oxygen(frequency: float,
+                 T: Union[float, TensorLike], P: Union[float, TensorLike],
+                 rho: Union[float, TensorLike]) -> Union[float, TensorLike]:
+    """
+    :param frequency: частота излучения в ГГц
+    :param T: термодинамическая температура, градусы Цельсия
+    :param P: атмосферное давление, мбар или гПа
+    :param rho: абсолютная влажность, г/м^3
+    :return: погонный коэффициент поглощения в кислороде (Дб/км)
+    """
+    return 0.1820 * frequency * __N_oxygen(frequency, T + 273.15, P, rho)
+
+
+def __N_water_vapor(f: float,
+               t: Union[float, TensorLike], p: Union[float, TensorLike],
+               rho: Union[float, TensorLike]):
+    e = rho * t / 216.7
+    th = 300 / t
+    N = 0.
+    _c_1 = e * math.pow_(th, 3.5) / 10.
+    _c_2 = 1. - th
+    for i, f_i in enumerate(lines.water_vapor.keys()):
+        b = lines.water_vapor[f_i]
+        S_i = b[1] * _c_1 * math.exp(b[2] * _c_2)
+        df_i = b[3] / 10000 * (p * math.pow_(th, b[4]) + b[5] * e * math.pow_(th, b[6]))
+        df_i = 0.535 * df_i + math.sqrt(
+            0.217 * df_i * df_i + (2.1316 / 1000000000000 * f_i * f_i) / th
+        )
+        F_i = f / f_i * (
+                df_i / ((f_i - f) * (f_i - f) + df_i * df_i) +
+                df_i / ((f_i + f) * (f_i + f) + df_i * df_i)
+        )
+        N = N + S_i * F_i
+    return N
+
+
+def gamma_water_vapor(frequency: float,
+                      T: Union[float, TensorLike], P: Union[float, TensorLike],
+                      rho: Union[float, TensorLike]) -> Union[float, TensorLike]:
+    """
+    :param frequency: частота излучения в ГГц
+    :param T: термодинамическая температура, градусы Цельсия
+    :param P: атмосферное давление, мбар или гПа
+    :param rho: абсолютная влажность, г/м^3
+    :return: погонный коэффициент поглощения в водяном паре (Дб/км)
+    """
+    return 0.1820 * frequency * __N_water_vapor(frequency, T + 273.15, P, rho)
+
+
 def tau_oxygen_near_ground(frequency: float,
                            T_near_ground: Union[float, Tensor2D],
                            P_near_ground: Union[float, Tensor2D],
@@ -103,7 +187,7 @@ def tau_oxygen_near_ground(frequency: float,
     :param theta: угол наблюдения в радианах
     :return: полное поглощение в кислороде (оптическая толщина). В неперах
     """
-    gamma = gamma_oxygen(frequency, T_near_ground, P_near_ground)
+    gamma = gamma_oxygen_approx(frequency, T_near_ground, P_near_ground)
     return gamma * H1(frequency) / math.cos(theta) * dB2np
 
 
@@ -123,5 +207,5 @@ def tau_water_vapor_near_ground(frequency: float,
     :param rainQ: идет дождь? True/False
     :return: полное поглощение в водяном паре. В неперах
     """
-    gamma = gamma_water_vapor(frequency, T_near_ground, P_near_ground, rho_near_ground)
+    gamma = gamma_water_vapor_approx(frequency, T_near_ground, P_near_ground, rho_near_ground)
     return gamma * H2(frequency, rainQ=rainQ) / math.cos(theta) * dB2np

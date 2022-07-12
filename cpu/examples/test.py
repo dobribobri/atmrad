@@ -8,6 +8,7 @@ from cpu.atmosphere import Atmosphere
 from cpu.cloudiness import Plank3D, CloudinessColumn, Cloudiness3D
 from cpu.surface import SmoothWaterSurface
 import cpu.satellite as satellite
+from cpu.weight_funcs import Staelin
 
 
 def test1():
@@ -191,10 +192,31 @@ def ex4():
     plt.show()
 
 
+def test3():
+    plt.figure()
+
+    _H, _d = 20., 500
+    sa = Atmosphere.Standard(H=_H, dh=_H / _d)
+    sa.integration_method = 'trapz'
+    sa.horizontal_extent = 1.  # km
+    sa.approx = True
+
+    freqs = np.arange(18.0, 27.3, 0.2)
+
+    for nu in freqs:
+        s = Staelin(sa, nu)
+        plt.plot(s / np.max(s), np.linspace(0, _H, _d), label='{:.1f} GHz'.format(nu))
+
+    plt.legend(frameon=False, bbox_to_anchor=(1.04, 1), borderaxespad=0)
+    plt.subplots_adjust(right=0.8)
+    plt.show()
+
+
 if __name__ == '__main__':
 
     # test1()
     # ex1()
     # ex3()
-    test2()
+    # test2()
     # ex4()
+    test3()
