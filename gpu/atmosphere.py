@@ -248,7 +248,7 @@ class Atmosphere:
             :param frequency: частота излучения в ГГц
             :return: погонный коэффициент поглощения в кислороде (Дб/км)
             """
-            return attenuation.oxygen(frequency, self._T, self._P, self.approx)
+            return attenuation.oxygen(frequency, self._T, self._P, self._rho, self.approx)
 
         @atmospheric
         def water_vapor(self: 'Atmosphere', frequency: float) -> Union[float, Tensor1D_or_3D]:

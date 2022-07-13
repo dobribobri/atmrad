@@ -14,7 +14,7 @@ from cpu.weight_funcs import krho
 from cpu.core.static.weight_funcs import kw
 import gpu.core.math as math
 
-from gpu.examples.old.domain import Domain
+# from gpu.examples.old.domain import Domain
 
 
 def test1():
@@ -115,7 +115,8 @@ def test2():
     res = 300  # горизонтальная дискретизация
 
     # observation parameters
-    angle = 0
+    angle = 51. * np.pi / 180.
+    # angle = 0.
     incline = 'left'
     integration_method = 'trapz'
 
@@ -129,10 +130,11 @@ def test2():
     surface_salinity = 0.
 
     # radiation parameters
-    polarization = None
+    polarization = 'V'
     frequencies = [22.2, 27.2, 36, 89]
+    approx = False
 
-    kernels = [int(a) for a in np.arange(6, 294 + 1, 6)]
+    # kernels = [int(a) for a in np.arange(6, 294 + 1, 6)]
     #########################################################################
 
     atmosphere = Atmosphere.Standard(H=H, dh=H / d, T0=T0, P0=P0, rho0=rho0)  # для облачной атмосферы по Планку
@@ -140,8 +142,10 @@ def test2():
 
     atmosphere.integration_method = integration_method  # метод интегрирования
     solid.integration_method = atmosphere.integration_method
+    atmosphere.approx = approx
+    solid.approx = atmosphere.approx
 
-    # atmosphere.angle = 30. * np.pi / 180.             # зенитный угол наблюдения, по умолчанию: 0
+    # зенитный угол наблюдения, по умолчанию: 0
     atmosphere.angle = angle
     atmosphere.horizontal_extent = X
     atmosphere.incline = incline  # в какую сторону по Ox наклонена траектория наблюдения
@@ -199,14 +203,15 @@ def test2():
         B[i] = T_avg_up[i] - T_avg_down[i] * R - math.as_tensor(surface_temperature + 273.15) * kappa
     #########################################################################
 
-    distr = distributions[0]
+    distr = distributions[0]    # ONLY FIRST DISTRIBUTION
     alpha, Dm, dm, eta, beta, cl_bottom = \
         distr['alpha'], distr['Dm'], distr['dm'], distr['eta'], distr['beta'], distr['cl_bottom']
 
     xi = -np.exp(-alpha * Dm) * (((alpha * Dm) ** 2) / 2 + alpha * Dm + 1) + \
         np.exp(-alpha * dm) * (((alpha * dm) ** 2) / 2 + alpha * dm + 1)
 
-    required_percentage = 0.5
+    required_percentage = 0.7  # SET REQUIRED SKY COVER PERCENTAGE
+
     K = 2 * np.power(alpha, 3) * (X * X * required_percentage) / (np.pi * xi)
 
     p = Plank3D(kilometers=(X, X, H), nodes=(res, res, d), clouds_bottom=cl_bottom)
@@ -235,12 +240,25 @@ def test2():
         cover_percentage * 100., cover_percentage_d * 100.))
 
     print('Simulating liquid water distribution 3D...')
-    atmosphere.liquid_water = p.liquid_water_(hmap2d=hmap,
-                                              const_w=const_w, mu0=mu0, psi0=psi0,
-                                              _w=lambda _H: _c0 * np.power(_H, _c1))
+    lwd = p.liquid_water_(hmap2d=hmap,
+                                   const_w=const_w, mu0=mu0, psi0=psi0,
+                                   _w=lambda _H: _c0 * np.power(_H, _c1))
+    # ДЛЯ НЕНУЛЕВЫХ УГЛОВ
+    dx = math.tan(angle) * H  # Определим смещение по Ox в км
+    N = res / X  # Определим, сколько узлов приходится на 1 км
+    di = dx * N  # Определим смещение по Ox в узлах
+    lwz_left = np.zeros((int(di), res, d))
+    lwz_right = np.zeros((int(di) // 4, res, d))
+    atmosphere.liquid_water = np.vstack((lwz_left, lwd, lwz_right))
+    atmosphere.horizontal_extent = X + dx + dx / 4.
+
+    # # Для нулевого угла
+    # atmosphere.liquid_water = lwd
+
     # print('LW3D shape: {}'.format(atmosphere.liquid_water.shape))
 
     print('Calculating brightness temperatures...')
+    print(atmosphere.approx)
     brts = {}
     for nu in frequencies:
         brt = satellite.brightness_temperature(nu, atmosphere, surface, cosmic=True)
@@ -249,9 +267,13 @@ def test2():
         brt = np.asarray(brt, dtype=float)
         brts[nu] = brt
 
-    # plt.figure('nu222')
-    # plt.imshow(brts[22.2])
-    # plt.colorbar()
+    import dill
+    with open('brt_L2_51deg_polarizationV.data', 'wb') as dump:
+        dill.dump(brts, dump)
+
+    plt.figure('nu36')
+    plt.imshow(brts[36].T)
+    plt.colorbar()
     # domain = Domain(kilometers=(50, 50, 10), nodes=(res, res, 100))
     # domain.apply_hmap(hmap)
     # tb1, tb2 = domain.get_tb2d_sat_parallel([22.2, 27.2], V_polarization=False)
@@ -259,7 +281,8 @@ def test2():
     # plt.figure('nu222d')
     # plt.imshow(tb1)
     # plt.colorbar()
-    # plt.show()
+    plt.show()
+    exit(0)
 
     W = atmosphere.W
 

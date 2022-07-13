@@ -91,7 +91,7 @@ def gamma_water_vapor_approx(frequency: float,
     return gamma
 
 
-def __N_d(f: float,
+def __N_d(f: Union[float, TensorLike],
           th: Union[float, TensorLike], p: Union[float, TensorLike],
           d: Union[float, TensorLike]):
     return f * p * th * th * (
@@ -103,6 +103,7 @@ def __N_d(f: float,
 def __N_oxygen(f: float,
                t: Union[float, TensorLike], p: Union[float, TensorLike],
                rho: Union[float, TensorLike]):
+    f = math.as_tensor(f)
     e = rho * t / 216.7
     th = 300 / t
     N = 0.
@@ -141,6 +142,7 @@ def gamma_oxygen(frequency: float,
 def __N_water_vapor(f: float,
                t: Union[float, TensorLike], p: Union[float, TensorLike],
                rho: Union[float, TensorLike]):
+    f = math.as_tensor(f)
     e = rho * t / 216.7
     th = 300 / t
     N = 0.

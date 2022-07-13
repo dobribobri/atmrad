@@ -6,6 +6,16 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
+# from mpl_toolkits.mplot3d import Axes3D
+#
+#
+# def data_for_cylinder_along_z(center_x, center_y, radius, height_z):
+#     z = np.linspace(1.5, height_z, 50)
+#     theta = np.linspace(0, 2*np.pi, 50)
+#     theta_grid, z_grid=np.meshgrid(theta, z)
+#     x_grid = radius*np.cos(theta_grid) + center_x
+#     y_grid = radius*np.sin(theta_grid) + center_y
+#     return x_grid,y_grid,z_grid
 
 
 if __name__ == '__main__':
@@ -18,6 +28,7 @@ if __name__ == '__main__':
     distributions = [
         # {'name': 'C0', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': -0.9, 'cl_bottom': 1.2192},
         # {'name': 'C1', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 2., 'beta': 0.3, 'cl_bottom': 1.2192},
+        {'name': 'C2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': -0.9, 'cl_bottom': 1.2192},
         {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
         {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
         {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
@@ -61,6 +72,19 @@ if __name__ == '__main__':
           np.sum(np.pi * np.power(np.array([cloud.rx for cloud in clouds]), 2)) / (X * X) * 100.)
 
     print('Wmax\t', np.max(atmosphere.W))
+
+    # # ################# 3D #################
+    # #
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    #
+    # for cloud in clouds[:10]:
+    #     Xc, Yc, Zc = data_for_cylinder_along_z(cloud.x, cloud.y, cloud.rx, cloud.height)
+    #     ax.plot_surface(Xc, Yc, Zc, color='gray')
+    # ax.set_zlim((0, 10))
+    # plt.show()
+    # #
+    # # ######################################
 
     plt.figure()
     plt.imshow(atmosphere.W)
@@ -168,3 +192,7 @@ if __name__ == '__main__':
     path = os.path.join('nstat', 'K{}_Dm{:.1f}_alpha{:.2f}_beta{:.2f}_eta{:.1f}.png'.format(K, Dm, alpha, beta, eta))
     plt.savefig(path, dpi=300)
     plt.show()
+
+    import dill
+    with open('stat_C2_procentage70.data', 'wb') as dump:
+        dill.dump((H, N, S), dump)

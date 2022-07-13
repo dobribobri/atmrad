@@ -28,36 +28,56 @@ def test2():
     sa = Atmosphere.Standard(H=_H, dh=_H / _d)
     sa.integration_method = 'trapz'
     sa.horizontal_extent = 1.  # km
-    sa.approx = True
+    sa.approx = False
+    sa.effective_cloud_temperature = -2.
 
     frequencies = np.linspace(10, 300., 500)
 
-    linestyles = ['-', '-.', '--']
-    for i, H in enumerate([0.0, 1.5, 3]):
+    theta = None
+    # theta = 30. * np.pi / 180
+    srf = SmoothWaterSurface(polarization='H')
+    # srf.angle = theta
 
-        W = 0.132574 * np.power(H, 2.30215)
+    linestyles = ['-', '-.', '--']
+    w = [0.01, 0.34, 1.66]
+    __const, __tb = [], []
+    for i, W in enumerate(w):
+
+        _c0 = 0.132574
+        _c1 = 2.30215
+        H = np.power(W / _c0, 1. / _c1)
+        sa.liquid_water = CloudinessColumn(kilometers_z=_H, nodes_z=_d, clouds_bottom=1.5).liquid_water(
+            H, const_w=True,
+        )
+        _const = satellite.brightness_temperatures(frequencies, sa, srf,
+                                               cosmic=True, n_workers=8, __theta=theta)
+        __const.append(_const[:, 0, 0])
+
         sa.liquid_water = CloudinessColumn(kilometers_z=_H, nodes_z=_d, clouds_bottom=1.5).liquid_water(
             H, const_w=False,
         )
-        # print(sa.attenuation.summary(22.2))
-        # exit(0)
-
-        tb = satellite.brightness_temperatures(frequencies, sa, SmoothWaterSurface(polarization='H'),
-                                               cosmic=True, n_workers=8)
-        # tb = sa.downward.brightness_temperatures(frequencies, background=True, n_workers=8)
+        tb = satellite.brightness_temperatures(frequencies, sa, srf,
+                                            cosmic=True, n_workers=8, __theta=theta)
+        # tb = sa.downward.brightness_temperatures(frequencies, background=False, n_workers=8)
+        __tb.append(tb[:, 0, 0])
 
         plt.plot(frequencies, tb[:, 0, 0],
                  label='({}) W = {:.2f} kg/m'.format(i+1, W) + r'$^2$',
                  linestyle=linestyles[i], color='black')
         print('\rH = {} km ready'.format(H), end='  ', flush=True)
 
+    import dill
+    with open('mazin_vs_const_10-300GHz_H20km_d500_trapz_cl.bottom1.5km_eff.cl.temp-2.data', 'wb') as dump:
+        dill.dump((frequencies, __const, __tb, w), dump)
+
     plt.xlabel(r'Frequency $\nu$, GHz')
-    plt.ylabel(r'Brightness temperature, К')
+    plt.ylabel(r'Brightness temperature difference, К')
     plt.xscale('log')
     xticks = [10, 20, 30, 50, 90, 183, 300]
     plt.xticks(ticks=xticks, labels=xticks)
     plt.legend(frameon=False)
-    plt.savefig('mazin_approx_H20km.png', dpi=300)
+    plt.savefig('mazin_H20km_trapz_eff.cl.temp-2.png', dpi=300)
+    # plt.savefig('wconst_H20km.eps')
     plt.show()
 
 
@@ -217,6 +237,6 @@ if __name__ == '__main__':
     # test1()
     # ex1()
     # ex3()
-    # test2()
+    test2()
     # ex4()
-    test3()
+    # test3()
