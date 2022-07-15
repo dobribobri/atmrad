@@ -24,7 +24,7 @@ def test1():
 def test2():
     plt.figure()
 
-    _H, _d = 20., 500
+    _H, _d = 20., 100
     sa = Atmosphere.Standard(H=_H, dh=_H / _d)
     sa.integration_method = 'trapz'
     sa.horizontal_extent = 1.  # km
@@ -39,25 +39,28 @@ def test2():
     # srf.angle = theta
 
     linestyles = ['-', '-.', '--']
-    w = [0.01, 0.34, 1.66]
+    w = [2, 5, 6]
     __const, __tb = [], []
     for i, W in enumerate(w):
 
         _c0 = 0.132574
         _c1 = 2.30215
         H = np.power(W / _c0, 1. / _c1)
-        sa.liquid_water = CloudinessColumn(kilometers_z=_H, nodes_z=_d, clouds_bottom=1.5).liquid_water(
-            H, const_w=True,
-        )
-        _const = satellite.brightness_temperatures(frequencies, sa, srf,
-                                               cosmic=True, n_workers=8, __theta=theta)
-        __const.append(_const[:, 0, 0])
+        # sa.liquid_water = CloudinessColumn(kilometers_z=_H, nodes_z=_d, clouds_bottom=1.5).liquid_water(
+        #     H, const_w=True,
+        # )
+        # _const = satellite.brightness_temperatures(frequencies, sa, srf,
+        #                                        cosmic=True, n_workers=8, __theta=theta)
+        # __const.append(_const[:, 0, 0])
 
-        sa.liquid_water = CloudinessColumn(kilometers_z=_H, nodes_z=_d, clouds_bottom=1.5).liquid_water(
-            H, const_w=False,
-        )
+        # sa.liquid_water = CloudinessColumn(kilometers_z=_H, nodes_z=_d, clouds_bottom=1.5).liquid_water(
+        #     H, const_w=False,
+        # )
+        start = time.time()
         tb = satellite.brightness_temperatures(frequencies, sa, srf,
                                             cosmic=True, n_workers=8, __theta=theta)
+        stop = time.time()
+        print(stop - start)
         # tb = sa.downward.brightness_temperatures(frequencies, background=False, n_workers=8)
         __tb.append(tb[:, 0, 0])
 
@@ -71,7 +74,7 @@ def test2():
         dill.dump((frequencies, __const, __tb, w), dump)
 
     plt.xlabel(r'Frequency $\nu$, GHz')
-    plt.ylabel(r'Brightness temperature difference, К')
+    plt.ylabel(r'Brightness temperature, К')
     plt.xscale('log')
     xticks = [10, 20, 30, 50, 90, 183, 300]
     plt.xticks(ticks=xticks, labels=xticks)
@@ -163,8 +166,9 @@ def ex4():
     surface_salinity = 0.
 
     # radiation parameters
-    polarization = None
+    polarization = 'V'
     frequencies = [22.2, 27.2, 36, 89]
+    approx = False
 
     ###
     _c0 = 0.132574
@@ -173,12 +177,14 @@ def ex4():
     cl_bottom = 1.5
     ###
 
-    w = np.asarray([0, 2, 5])
+    w = np.asarray([0, 0.5, 1.5, 3])
 
     ###
 
     solid = Atmosphere.Standard(H=H, dh=H / d, T0=T0, P0=P0, rho0=rho0)  # для атмосферы со сплошной облачностью
     solid.integration_method = integration_method
+    solid.approx = approx
+    # solid.effective_cloud_temperature = -2.
 
     surface = SmoothWaterSurface(temperature=surface_temperature,
                                  salinity=surface_salinity,
@@ -192,22 +198,30 @@ def ex4():
     )
 
     brts = {}
+    _THETA = np.linspace(0, 51, 20)
     for nu in frequencies:
         brts[nu] = []
-        for THETA in np.linspace(0, 51, 10):
+        for THETA in _THETA:
             angle = THETA * np.pi / 180.  # зенитный угол наблюдения, по умолчанию: 0
             surface.angle = angle
             brt = satellite.brightness_temperature(nu, solid, surface, cosmic=True, __theta=angle)[0]
             brts[nu].append(brt)
         brts[nu] = np.asarray(brts[nu])
 
-    plt.figure()
-    plt.plot(np.linspace(0, 51, 10), brts[22.2][:, 0], label=r'22.2 GHz, 0 kg$\cdot$m$^{-2}$', linestyle='-')
-    plt.plot(np.linspace(0, 51, 10), brts[22.2][:, 1], label=r'22.2 GHz, 2 kg$\cdot$m$^{-2}$', linestyle='-')
-    # plt.plot(np.linspace(0, 51, 10), brts[22.2][:, 2], label=r'22.2 GHz, 5 kg$\cdot$m$^{-2}$', linestyle='-')
+    import dill
+    with open('flat_tb_36GHz_theta_noapprox_polarization{}.data'.format(polarization), 'wb') as dump:
+        dill.dump((frequencies, _THETA, brts), dump)
 
-    plt.plot(np.linspace(0, 51, 10), brts[36][:, 0], label=r'27.2 GHz, 0 kg$\cdot$m$^{-2}$', linestyle='--')
-    plt.plot(np.linspace(0, 51, 10), brts[36][:, 1], label=r'27.2 GHz, 2 kg$\cdot$m$^{-2}$', linestyle='--')
+    nu = 36
+    plt.figure()
+    plt.plot(_THETA, brts[nu][:, 0], label='{:.1f}'.format(nu) + r' GHz, 0 kg$\cdot$m$^{-2}$', linestyle='-')
+    plt.plot(_THETA, brts[nu][:, 1], label='{:.1f}'.format(nu) + r' GHz, 1.5 kg$\cdot$m$^{-2}$', linestyle='--')
+    plt.plot(_THETA, brts[nu][:, 2], label='{:.1f}'.format(nu) + r' GHz, 3 kg$\cdot$m$^{-2}$', linestyle='-.')
+    # plt.plot(_THETA, brts[nu][:, 3], label='{:.1f}'.format(nu) + r' GHz, 8 kg$\cdot$m$^{-2}$', linestyle=':')
+
+    # plt.plot(np.linspace(0, 51, 10), brts[36][:, 0], label=r'36 GHz, 0 kg$\cdot$m$^{-2}$', linestyle='-')
+    # plt.plot(np.linspace(0, 51, 10), brts[36][:, 1], label=r'36 GHz, 2 kg$\cdot$m$^{-2}$', linestyle='--')
+    # plt.plot(np.linspace(0, 51, 10), brts[36][:, 2], label=r'36 GHz, 5 kg$\cdot$m$^{-2}$', linestyle='-.')
     plt.legend(frameon=False)
     plt.show()
 
@@ -237,6 +251,6 @@ if __name__ == '__main__':
     # test1()
     # ex1()
     # ex3()
-    test2()
-    # ex4()
+    # test2()
+    ex4()
     # test3()

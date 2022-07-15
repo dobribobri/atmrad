@@ -115,8 +115,8 @@ def test2():
     res = 300  # горизонтальная дискретизация
 
     # observation parameters
-    angle = 51. * np.pi / 180.
-    # angle = 0.
+    # angle = 51. * np.pi / 180.
+    angle = 0.
     incline = 'left'
     integration_method = 'trapz'
 
@@ -161,7 +161,8 @@ def test2():
     #########################################################################
     # distribution parameters
     distributions = [
-        {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
+        # {'name': 'N2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': 0.3, 'cl_bottom': 1.2192},
+        # {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
         {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
         # {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
         {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
@@ -243,17 +244,17 @@ def test2():
     lwd = p.liquid_water_(hmap2d=hmap,
                                    const_w=const_w, mu0=mu0, psi0=psi0,
                                    _w=lambda _H: _c0 * np.power(_H, _c1))
-    # ДЛЯ НЕНУЛЕВЫХ УГЛОВ
-    dx = math.tan(angle) * H  # Определим смещение по Ox в км
-    N = res / X  # Определим, сколько узлов приходится на 1 км
-    di = dx * N  # Определим смещение по Ox в узлах
-    lwz_left = np.zeros((int(di), res, d))
-    lwz_right = np.zeros((int(di) // 4, res, d))
-    atmosphere.liquid_water = np.vstack((lwz_left, lwd, lwz_right))
-    atmosphere.horizontal_extent = X + dx + dx / 4.
+    # # ДЛЯ НЕНУЛЕВЫХ УГЛОВ
+    # dx = math.tan(angle) * H  # Определим смещение по Ox в км
+    # N = res / X  # Определим, сколько узлов приходится на 1 км
+    # di = dx * N  # Определим смещение по Ox в узлах
+    # lwz_left = np.zeros((int(di), res, d))
+    # lwz_right = np.zeros((int(di) // 4, res, d))
+    # atmosphere.liquid_water = np.vstack((lwz_left, lwd, lwz_right))
+    # atmosphere.horizontal_extent = X + dx + dx / 4.
 
-    # # Для нулевого угла
-    # atmosphere.liquid_water = lwd
+    # Для нулевого угла
+    atmosphere.liquid_water = lwd
 
     # print('LW3D shape: {}'.format(atmosphere.liquid_water.shape))
 
@@ -267,28 +268,34 @@ def test2():
         brt = np.asarray(brt, dtype=float)
         brts[nu] = brt
 
-    import dill
-    with open('brt_L2_51deg_polarizationV.data', 'wb') as dump:
-        dill.dump(brts, dump)
-
-    plt.figure('nu36')
-    plt.imshow(brts[36].T)
-    plt.colorbar()
-    # domain = Domain(kilometers=(50, 50, 10), nodes=(res, res, 100))
-    # domain.apply_hmap(hmap)
-    # tb1, tb2 = domain.get_tb2d_sat_parallel([22.2, 27.2], V_polarization=False)
-    # tb1, _ = domain.get_tb2d_sat(22.2)
-    # plt.figure('nu222d')
-    # plt.imshow(tb1)
+    # import dill
+    # with open('brt_L2_51deg_polarizationV.data', 'wb') as dump:
+    #     dill.dump(brts, dump)
+    #
+    # plt.figure('nu36')
+    # plt.imshow(brts[36].T)
     # plt.colorbar()
-    plt.show()
-    exit(0)
+    # # domain = Domain(kilometers=(50, 50, 10), nodes=(res, res, 100))
+    # # domain.apply_hmap(hmap)
+    # # tb1, tb2 = domain.get_tb2d_sat_parallel([22.2, 27.2], V_polarization=False)
+    # # tb1, _ = domain.get_tb2d_sat(22.2)
+    # # plt.figure('nu222d')
+    # # plt.imshow(tb1)
+    # # plt.colorbar()
+    # plt.show()
+    # exit(0)
 
     W = atmosphere.W
+
+    import dill
+    with open('w_init_L2_procentage70.data', 'wb') as dump:
+        dill.dump(np.asarray(W, dtype=float), dump)
 
     plt.figure('W')
     plt.imshow(W)
     plt.colorbar()
+    # plt.show()
+    # exit(0)
 
     Q = atmosphere.Q
     Q = [[Q] * res] * res
