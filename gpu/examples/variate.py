@@ -39,10 +39,10 @@ def append_stats(dest, arr, key):
 
 if __name__ == '__main__':
 
-    # THETAS = [0., 10., 20., 30., 40., 51.]
-    THETAS = [0.]
+    THETAS = [0., 10., 20., 30., 40., 51.]
+    # THETAS = [0.]
 
-    for THETA in THETAS[::-1]:
+    for THETA in THETAS:
 
         #########################################################################
         # domain parameters
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         #########################################################################
 
         # create project folder
-        folder = 'ieee_{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
+        folder = 'variate_L2_kernel60_theta{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
         if not os.path.exists(folder):
             os.makedirs(folder)
 
@@ -105,6 +105,8 @@ if __name__ == '__main__':
         # distribution parameters
         distributions = [
             {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
+            {'name': 'L2B', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': -0.9, 'cl_bottom': 1.2192},
+            {'name': 'L2E', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': 0.3, 'cl_bottom': 1.2192},
             # {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
             # {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
             # {'name': 'T6', 'alpha': 1.398, 'Dm': 3.376, 'dm': 0.03048, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 1.0668},
