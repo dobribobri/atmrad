@@ -34,6 +34,20 @@ def conv_averaging(array2d: np.ndarray, kernel: Union[Tuple, int] = (10, 10)) ->
     return convolve2d(array2d, kernel, mode='valid').flatten()
 
 
+def conv_cut(array2d: np.ndarray, kernel: Union[Tuple, int] = (10, 10),
+             averaging: bool = False) -> np.ndarray:
+    ni, nj = __(kernel)
+    si, sj = array2d.shape
+    new_arr = []
+    for i in range(si - ni):
+        for j in range(sj - nj):
+            val = np.asarray(array2d[i:i + ni, j:j + nj]).flatten()
+            if averaging:
+                val = np.mean(val)
+            new_arr.append(val)
+    return np.asarray(new_arr)
+
+
 def add_zeros(array2d: np.ndarray, bounds: Union[Tuple[int, int], Tuple[int, int, int, int], int]):
     if type(bounds) == int:
         top = right = bottom = left = bounds
