@@ -198,8 +198,8 @@ if __name__ == '__main__':
             print('xi\t', xi)
 
             for ID, required_percentage in enumerate(percentage):
-                if os.path.exists(os.path.join(folder, '{}_{}.part'.format(distr['name'], str(ID).zfill(4)))):
-                    continue
+                # if os.path.exists(os.path.join(folder, '{}_{}.part'.format(distr['name'], str(ID).zfill(4)))):
+                #     continue
                 print('\n\nRequired %: {:.2f}'.format(required_percentage * 100.))
                 K = 2 * np.power(alpha, 3) * (X * X * required_percentage) / (np.pi * xi)
                 print('K\t', K)
