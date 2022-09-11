@@ -24,8 +24,8 @@ if __name__ == '__main__':
     # THETAS = [0., 10., 20., 30., 40., 51.]
     THETAS = [0.]
 
-    data = [
-         'angle', 'distr', 'required_percentage', 'kernel',
+    data = [(
+         'angle', 'distr_no', 'required_percentage', 'kernel',
             
          'Q_mean', 'W_mean',
          'efl_Hs_mean',
@@ -68,7 +68,7 @@ if __name__ == '__main__':
          'efl_tau_nu1_var', 'efl_tau_nu2_var',
          'Qr_var', 'Wr_var',
          'Qrs_var', 'Wrs_var',
-         'efl_Qrss_var', 'efl_Wrss_var',
+         'efl_Qrss_var', 'efl_Wrss_var')
     ]
 
     for THETA in THETAS:
@@ -167,7 +167,7 @@ if __name__ == '__main__':
         T_cosmic = 2.72548
         for i, freq_pair in enumerate(frequency_pairs):
             k_rho = [krho(sa, f) for f in freq_pair]
-            k_w = [kw(f, t=-2.) for f in freq_pair]
+            k_w = [kw(f, t=0.) for f in freq_pair]
             m = math.as_tensor([k_rho, k_w])
             M[i] = math.transpose(m)
 
@@ -187,7 +187,7 @@ if __name__ == '__main__':
 
         start_time = datetime.datetime.now()
 
-        for distr in distributions:
+        for distr_no, distr in enumerate(distributions):
             print('\n\nProcessing {} ...\n'.format(distr['name']))
 
             alpha, Dm, dm, eta, beta, cl_bottom = \
@@ -359,7 +359,7 @@ if __name__ == '__main__':
                         ###############################################################################################
 
                         data.append(
-                            [THETA, distr, required_percentage, kernel,
+                            [THETA, distr_no, required_percentage, kernel,
                              np.mean(conv_Q_mean), np.mean(conv_W_mean),
                              np.mean(conv_Hs),
                              np.max(conv_Q_mean), np.max(conv_W_mean),
