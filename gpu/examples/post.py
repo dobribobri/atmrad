@@ -102,13 +102,13 @@ if __name__ == '__main__':
         frequency_pairs = [(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]
 
         # kernels = [int(a) for a in np.arange(6, res+1, 6)]
-        kernels = [30, 60, 90]
+        kernels = [6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 90, 120, 150, 240, 288]
         #########################################################################
 
-        # create project folder
-        folder = 'post_L2_kernel60_theta{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+        # # create project folder
+        # folder = 'post_L2_kernel60_theta{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
+        # if not os.path.exists(folder):
+        #     os.makedirs(folder)
 
         #########################################################################
 
