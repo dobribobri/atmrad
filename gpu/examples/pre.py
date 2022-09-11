@@ -28,7 +28,7 @@ if __name__ == '__main__':
     H = 20.  # высота атмосферы
     d = 100  # дискретизация по высоте
     X = 10
-    res = 100  # горизонтальная дискретизация
+    res = 10  # горизонтальная дискретизация
 
     # observation parameters
     # angle = 0.
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     # radiation parameters
     polarization = None
     frequencies = [22.2, 27.2, 36, 89]
-    # frequencies = [22.2, 27.2]
+    frequency_pairs = [(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]
 
     # create project folder
     folder = 'pre_res100_theta{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     sa = cpuAtm.Standard(T0, P0, rho0)
     T_avg_down, T_avg_up, Tau_o, A, B, M = {}, {}, {}, {}, {}, {}
     T_cosmic = 2.72548
-    for i, freq_pair in enumerate([(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]):
+    for i, freq_pair in enumerate(frequency_pairs):
         k_rho = [krho(sa, f) for f in freq_pair]
         k_w = [kw(f, t=-2.) for f in freq_pair]
         m = math.as_tensor([k_rho, k_w])
@@ -112,12 +112,24 @@ if __name__ == '__main__':
 
     hmap = np.zeros((res, res))
 
-    data = []
-    for power in np.linspace(0, 5., 20):
+    data = [('power', 'procentage', 'Q_mean', 'W_mean',
+             'freq_pair_no', 'nu1', 'nu2', 'Qr_mean', 'Wr_mean', 'Qrs', 'Wrs')]
+
+    #####################
+    power_range = np.linspace(0, 5., 20)[::-1]
+    #####################
+
+    for pl, power in enumerate(power_range):
         for i in range(res):
             for j in range(res):
+
                 hmap[i, j] = power
                 procentage = np.count_nonzero(hmap) / (res * res) * 100
+
+                print('\r{:.2f}%\t\t\tpower = {:.1f}\tfill = {:.1f}%\t'.format(
+                      (i + 1) * (j + 1) * (pl + 1) / (res * res * len(power_range)) * 100,
+                      power, procentage),
+                      end='     ', flush=True)
 
                 c = Cloudiness3D(kilometers=(X, X, H), nodes=(res, res, d), clouds_bottom=cl_bottom)
 
@@ -125,22 +137,23 @@ if __name__ == '__main__':
                                                          const_w=const_w, mu0=mu0, psi0=psi0,
                                                          _w=lambda _H: _c0 * np.power(_H, _c1))
 
-                brts = []
-                taus = []
+                brts, brts_mean = {}, {}
+                # taus, taus_mean = {}, {}
                 for nu in frequencies:
                     brt = satellite.brightness_temperature(nu, atmosphere, surface, cosmic=True)
-
                     brt = np.asarray(brt, dtype=float)
-                    brts.append(brt)
+                    brts[nu] = brt
+                    brts_mean[nu] = np.mean(brt)
 
-                    tau = atmosphere.opacity.summary(nu)
-                    tau = np.asarray(tau, dtype=float)
-                    taus.append(tau)
+                    # tau = atmosphere.opacity.summary(nu)
+                    # tau = np.asarray(tau, dtype=float)
+                    # taus[nu] = tau
+                    # taus_mean[nu] = np.mean(tau)
 
                 Q = atmosphere.Q
                 Q = np.asarray([[Q] * res] * res)
 
-                nx, ny = brts[0].shape
+                nx, ny = brts[frequencies[0]].shape
                 if incline == 'left':
                     W = atmosphere.W[res - nx:, :]
                     Q = Q[res - nx:, :]
@@ -148,5 +161,44 @@ if __name__ == '__main__':
                     W = atmosphere.W[:nx, :]
                     Q = Q[:nx, :]
 
+                W_mean = np.mean(W)
+                Q_mean = np.mean(Q)
 
+                for k, (nu1, nu2) in enumerate(frequency_pairs):
+                    a, b = A[k], B[k]
+                    t_avg_up = T_avg_up[k]
+                    mat = M[k]
+                    tau_o = Tau_o[k]
 
+                    brt = math.as_tensor([brts[nu1].flatten(), brts[nu2].flatten()])
+                    brt = math.move_axis(brt, 0, -1)
+
+                    D = b * b - 4 * a * (brt - t_avg_up)
+                    tau_e = math.as_tensor(-math.log((-b + math.sqrt(D)) / (2 * a))) * np.cos(angle)
+
+                    right = math.move_axis(tau_e - tau_o, 0, -1)
+
+                    sol = math.linalg_solve(mat, right)
+                    Wr = np.asarray(sol[1, :], dtype=float)
+                    Qr = np.asarray(sol[0, :], dtype=float)
+
+                    Wr_mean = np.mean(Wr)
+                    Qr_mean = np.mean(Qr)
+
+                    #####################
+
+                    brt = math.as_tensor([brts_mean[nu1], brts_mean[nu2]])
+                    D = b * b - 4 * a * (brt - t_avg_up)
+                    tau_e = np.asarray(-math.log((-b + math.sqrt(D)) / (2 * a))) * np.cos(angle)
+                    sol = np.linalg.solve(mat, tau_e - tau_o)
+                    Wrs = sol[1]
+                    Qrs = sol[0]
+
+                    #####################
+
+                    data.append([power, procentage, Q_mean, W_mean,
+                                 k, nu1, nu2, Qr_mean, Wr_mean, Qrs, Wrs])
+
+    data = np.array(data, dtype=object)
+    with open('pre_data.bin', 'wb') as dump:
+        dill.dump(data, dump, recurse=True)
