@@ -325,3 +325,7 @@ if __name__ == '__main__':
                              np.mean(Qrs), np.mean(Wrs),
                              np.mean(Qrss), np.mean(Wrss)]
                         )
+
+    data = np.array(data, dtype=object)
+    with open('post_data.bin', 'wb') as dump:
+        dill.dump(data, dump, recurse=True)

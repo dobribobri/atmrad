@@ -51,10 +51,10 @@ if __name__ == '__main__':
     frequencies = [22.2, 27.2, 36, 89]
     frequency_pairs = [(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]
 
-    # create project folder
-    folder = 'pre_res100_theta{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    # # create project folder
+    # folder = 'pre_res100_theta{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
+    # if not os.path.exists(folder):
+    #     os.makedirs(folder)
 
     #########################################################################
 
