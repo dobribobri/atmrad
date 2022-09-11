@@ -403,6 +403,9 @@ if __name__ == '__main__':
                              ]
                         )
 
+            with open('post_data.bin', 'wb') as dump:
+                dill.dump(np.array(data, dtype=object), dump, recurse=True)
+
     data = np.array(data, dtype=object)
     with open('post_data.bin', 'wb') as dump:
         dill.dump(data, dump, recurse=True)

@@ -205,6 +205,9 @@ if __name__ == '__main__':
                                  taus_mean[nu1], taus_mean[nu2],
                                  Qr_mean, Wr_mean, Qrs, Wrs])
 
+        with open('pre_data.bin', 'wb') as dump:
+            dill.dump(np.array(data, dtype=object), dump, recurse=True)
+
     data = np.array(data, dtype=object)
     with open('pre_data.bin', 'wb') as dump:
         dill.dump(data, dump, recurse=True)
