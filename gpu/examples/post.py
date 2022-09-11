@@ -24,15 +24,52 @@ if __name__ == '__main__':
     # THETAS = [0., 10., 20., 30., 40., 51.]
     THETAS = [0.]
 
-    data = ['angle', 'distr', 'required_percentage', 'kernel',
+    data = [
+         'angle', 'distr', 'required_percentage', 'kernel',
+            
          'Q_mean', 'W_mean',
-         'Hs_mean',
+         'efl_Hs_mean',
+         'Q_max', 'W_max',
+         'efl_Hs_max',
+         'Q_min', 'W_min',
+         'efl_Hs_min',
+         'Q_var', 'W_var',
+         'efl_Hs_var',
+            
          'freq_pair_no', 'nu1', 'nu2',
+            
          'tb_nu1_mean', 'tb_nu2_mean',
+         'tau_nu1_mean', 'tau_nu2_mean',
          'efl_tb_nu1_mean', 'efl_tb_nu2_mean',
+         'efl_tau_nu1_mean', 'efl_tau_nu2_mean',
          'Qr_mean', 'Wr_mean',
          'Qrs_mean', 'Wrs_mean',
-         'Qrss_mean', 'Wrss_mean']
+         'efl_Qrss_mean', 'efl_Wrss_mean',
+
+         'tb_nu1_max', 'tb_nu2_max',
+         'tau_nu1_max', 'tau_nu2_max',
+         'efl_tb_nu1_max', 'efl_tb_nu2_max',
+         'efl_tau_nu1_max', 'efl_tau_nu2_max',
+         'Qr_max', 'Wr_max',
+         'Qrs_max', 'Wrs_max',
+         'efl_Qrss_max', 'efl_Wrss_max'
+
+         'tb_nu1_min', 'tb_nu2_min',
+         'tau_nu1_min', 'tau_nu2_min',
+         'efl_tb_nu1_min', 'efl_tb_nu2_min',
+         'efl_tau_nu1_min', 'efl_tau_nu2_min',
+         'Qr_min', 'Wr_min',
+         'Qrs_min', 'Wrs_min',
+         'efl_Qrss_min', 'efl_Wrss_min',
+
+         'tb_nu1_var', 'tb_nu2_var',
+         'tau_nu1_var', 'tau_nu2_var',
+         'efl_tb_nu1_var', 'efl_tb_nu2_var',
+         'efl_tau_nu1_var', 'efl_tau_nu2_var',
+         'Qr_var', 'Wr_var',
+         'Qrs_var', 'Wrs_var',
+         'efl_Qrss_var', 'efl_Wrss_var',
+    ]
 
     for THETA in THETAS:
 
@@ -199,7 +236,7 @@ if __name__ == '__main__':
 
                 print('Calculating brightness temperatures...')
                 brts = {}
-                # taus = {}
+                taus = {}
                 for nu in frequencies:
 
                     brt = satellite.brightness_temperature(nu, atmosphere, surface, cosmic=True)
@@ -207,9 +244,9 @@ if __name__ == '__main__':
                     brt = np.asarray(brt, dtype=float)
                     brts[nu] = brt
 
-                    # tau = atmosphere.opacity.summary(nu)
-                    # tau = np.asarray(tau, dtype=float)
-                    # taus[nu] = tau
+                    tau = atmosphere.opacity.summary(nu)
+                    tau = np.asarray(tau, dtype=float)
+                    taus[nu] = tau
 
                 # W = atmosphere.W
                 Q = atmosphere.Q
@@ -240,8 +277,8 @@ if __name__ == '__main__':
                           end='   ', flush=True)
 
                     # свертка карты водозапаса с элементом разрешения выбранного размера
-                    conv_W_mean = map2d.conv_cut(W, kernel=kernel, averaging=True)
-                    conv_Q_mean = map2d.conv_cut(Q, kernel=kernel, averaging=True)
+                    conv_W_mean = map2d.conv_averaging(W, kernel=kernel)
+                    conv_Q_mean = map2d.conv_averaging(Q, kernel=kernel)
 
                     # обратный переход от водозапаса к высотам с учетом сделанной ранее коррекции
                     conv_Hs = np.power(conv_W_mean / _c0, 1. / _c1)
@@ -251,17 +288,24 @@ if __name__ == '__main__':
                         np.asarray([conv_Hs]), const_w=False, _w=lambda _H: _c0 * np.power(_H, _c1)
                     )
 
-                    conv_brts, conv_brts_mean = {}, {}
+                    conv_brts_mean = {}
+                    conv_taus_mean = {}
                     solid_brts = {}
+                    solid_taus = {}
                     for nu in frequencies:
-                        conv_brt = map2d.conv_cut(brts[nu], kernel=kernel, averaging=False)
-                        conv_brts[nu] = conv_brt
-                        conv_brt_mean = map2d.conv_cut(brts[nu], kernel=kernel, averaging=True)
+                        conv_brt_mean = map2d.conv_averaging(brts[nu], kernel=kernel)
                         conv_brts_mean[nu] = conv_brt_mean
+
+                        conv_tau_mean = map2d.conv_averaging(taus[nu], kernel=kernel)
+                        conv_taus_mean[nu] = conv_tau_mean
 
                         solid_brt = satellite.brightness_temperature(nu, solid, surface, cosmic=True, __theta=angle)[0]
                         solid_brt = np.asarray(solid_brt, dtype=float)
                         solid_brts[nu] = solid_brt
+
+                        solid_tau = solid.opacity.summary(nu, angle)[0]
+                        solid_tau = np.asarray(solid_tau, dtype=float)
+                        solid_taus[nu] = solid_tau
 
                     for i, (nu1, nu2) in enumerate(frequency_pairs):
                         a, b = A[i], B[i]
@@ -269,10 +313,10 @@ if __name__ == '__main__':
                         mat = M[i]
                         tau_o = Tau_o[i]
 
-                        conv_brt = math.as_tensor([conv_brts[nu1], conv_brts[nu2]])
-                        conv_brt = math.move_axis(conv_brt, 0, -1)
+                        brt = math.as_tensor([brts[nu1], brts[nu2]])
+                        brt = math.move_axis(brt, 0, -1)
 
-                        D = b * b - 4 * a * (conv_brt - t_avg_up)
+                        D = b * b - 4 * a * (brt - t_avg_up)
                         tau_e = math.as_tensor(-math.log((-b + math.sqrt(D)) / (2 * a))) * np.cos(angle)
 
                         right = math.move_axis(tau_e - tau_o, 0, -1)
@@ -282,8 +326,8 @@ if __name__ == '__main__':
                         Wr = np.asarray(sol[1, :, :], dtype=float)
                         Qr = np.asarray(sol[0, :, :], dtype=float)
 
-                        Wr_mean = np.mean(Wr, axis=-1)
-                        Qr_mean = np.mean(Qr, axis=-1)
+                        conv_Wr_mean = map2d.conv_averaging(Wr, kernel=kernel)
+                        conv_Qr_mean = map2d.conv_averaging(Qr, kernel=kernel)
 
                         ###############################################################################################
 
@@ -296,8 +340,8 @@ if __name__ == '__main__':
                         right = math.move_axis(tau_e - tau_o, 0, -1)
 
                         sol = math.linalg_solve(mat, right)
-                        Wrs = np.asarray(sol[1, :], dtype=float)
-                        Qrs = np.asarray(sol[0, :], dtype=float)
+                        conv_Wrs = np.asarray(sol[1, :], dtype=float)
+                        conv_Qrs = np.asarray(sol[0, :], dtype=float)
 
                         ###############################################################################################
                         solid_brt = np.asarray([solid_brts[nu1], solid_brts[nu2]])
@@ -309,8 +353,8 @@ if __name__ == '__main__':
                         right = math.move_axis(tau_e - tau_o, 0, -1)
 
                         sol = math.linalg_solve(mat, right)
-                        Wrss = np.asarray(sol[1, :], dtype=float)
-                        Qrss = np.asarray(sol[0, :], dtype=float)
+                        conv_Wrss = np.asarray(sol[1, :], dtype=float)
+                        conv_Qrss = np.asarray(sol[0, :], dtype=float)
 
                         ###############################################################################################
 
@@ -318,12 +362,45 @@ if __name__ == '__main__':
                             [THETA, distr, required_percentage, kernel,
                              np.mean(conv_Q_mean), np.mean(conv_W_mean),
                              np.mean(conv_Hs),
+                             np.max(conv_Q_mean), np.max(conv_W_mean),
+                             np.max(conv_Hs),
+                             np.min(conv_Q_mean), np.min(conv_W_mean),
+                             np.min(conv_Hs),
+                             np.var(conv_Q_mean), np.var(conv_W_mean),
+                             np.var(conv_Hs),
                              i, nu1, nu2,
                              np.mean(conv_brts_mean[nu1]), np.mean(conv_brts_mean[nu2]),
+                             np.mean(conv_taus_mean[nu1]), np.mean(conv_taus_mean[nu2]), 
                              np.mean(solid_brts[nu1]), np.mean(solid_brts[nu2]),
-                             np.mean(Qr_mean), np.mean(Wr_mean),
-                             np.mean(Qrs), np.mean(Wrs),
-                             np.mean(Qrss), np.mean(Wrss)]
+                             np.mean(solid_taus[nu1]), np.mean(solid_taus[nu2]),
+                             np.mean(conv_Qr_mean), np.mean(conv_Wr_mean),
+                             np.mean(conv_Qrs), np.mean(conv_Wrs),
+                             np.mean(conv_Qrss), np.mean(conv_Wrss),
+
+                             np.max(conv_brts_mean[nu1]), np.max(conv_brts_mean[nu2]),
+                             np.max(conv_taus_mean[nu1]), np.max(conv_taus_mean[nu2]),
+                             np.max(solid_brts[nu1]), np.max(solid_brts[nu2]),
+                             np.max(solid_taus[nu1]), np.max(solid_taus[nu2]),
+                             np.max(conv_Qr_mean), np.max(conv_Wr_mean),
+                             np.max(conv_Qrs), np.max(conv_Wrs),
+                             np.max(conv_Qrss), np.max(conv_Wrss),
+
+                             np.min(conv_brts_mean[nu1]), np.min(conv_brts_mean[nu2]),
+                             np.min(conv_taus_mean[nu1]), np.min(conv_taus_mean[nu2]),
+                             np.min(solid_brts[nu1]), np.min(solid_brts[nu2]),
+                             np.min(solid_taus[nu1]), np.min(solid_taus[nu2]),
+                             np.min(conv_Qr_mean), np.min(conv_Wr_mean),
+                             np.min(conv_Qrs), np.min(conv_Wrs),
+                             np.min(conv_Qrss), np.min(conv_Wrss),
+
+                             np.var(conv_brts_mean[nu1]), np.var(conv_brts_mean[nu2]),
+                             np.var(conv_taus_mean[nu1]), np.var(conv_taus_mean[nu2]),
+                             np.var(solid_brts[nu1]), np.var(solid_brts[nu2]),
+                             np.var(solid_taus[nu1]), np.var(solid_taus[nu2]),
+                             np.var(conv_Qr_mean), np.var(conv_Wr_mean),
+                             np.var(conv_Qrs), np.var(conv_Wrs),
+                             np.var(conv_Qrss), np.var(conv_Wrss),
+                             ]
                         )
 
     data = np.array(data, dtype=object)

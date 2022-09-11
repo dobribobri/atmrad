@@ -111,7 +111,10 @@ if __name__ == '__main__':
     #########################################################################
 
     data = [('power', 'procentage', 'Q_mean', 'W_mean',
-             'freq_pair_no', 'nu1', 'nu2', 'Qr_mean', 'Wr_mean', 'Qrs', 'Wrs')]
+             'freq_pair_no', 'nu1', 'nu2',
+             'tb_mean_nu1', 'tb_mean_nu2',
+             'tau_mean_nu1', 'tau_mean_nu2',
+             'Qr_mean', 'Wr_mean', 'Qrs', 'Wrs')]
 
     #####################
     power_range = np.linspace(0, 5., 20)[::-1]
@@ -139,17 +142,17 @@ if __name__ == '__main__':
                                                          _w=lambda _H: _c0 * np.power(_H, _c1))
 
                 brts, brts_mean = {}, {}
-                # taus, taus_mean = {}, {}
+                taus, taus_mean = {}, {}
                 for nu in frequencies:
                     brt = satellite.brightness_temperature(nu, atmosphere, surface, cosmic=True)
                     brt = np.asarray(brt, dtype=float)
                     brts[nu] = brt
                     brts_mean[nu] = np.mean(brt)
 
-                    # tau = atmosphere.opacity.summary(nu)
-                    # tau = np.asarray(tau, dtype=float)
-                    # taus[nu] = tau
-                    # taus_mean[nu] = np.mean(tau)
+                    tau = atmosphere.opacity.summary(nu)
+                    tau = np.asarray(tau, dtype=float)
+                    taus[nu] = tau
+                    taus_mean[nu] = np.mean(tau)
 
                 Q = atmosphere.Q
                 Q = np.asarray([[Q] * res] * res)
@@ -198,7 +201,10 @@ if __name__ == '__main__':
                     #####################
 
                     data.append([power, procentage, Q_mean, W_mean,
-                                 k, nu1, nu2, Qr_mean, Wr_mean, Qrs, Wrs])
+                                 k, nu1, nu2,
+                                 brts_mean[nu1], brts_mean[nu2],
+                                 taus_mean[nu1], taus_mean[nu2],
+                                 Qr_mean, Wr_mean, Qrs, Wrs])
 
     data = np.array(data, dtype=object)
     with open('pre_data.bin', 'wb') as dump:
