@@ -128,7 +128,7 @@ if __name__ == '__main__':
                 procentage = np.count_nonzero(hmap) / (res * res) * 100
 
                 print('\r{:.2f}%\t\t\tpower = {:.1f}\tfill = {:.1f}%\t'.format(
-                      (i + 1) * (j + 1) * (pl + 1) / (res * res * len(power_range)) * 100,
+                      (i * res + j + 1) * (pl + 1) / (res * res * len(power_range)) * 100,
                       power, procentage),
                       end='     ', flush=True)
 
