@@ -102,7 +102,7 @@ if __name__ == '__main__':
         frequency_pairs = [(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]
 
         # kernels = [int(a) for a in np.arange(6, res+1, 6)]
-        kernels = [60]
+        kernels = [30, 60, 90]
         #########################################################################
 
         # create project folder
@@ -182,7 +182,7 @@ if __name__ == '__main__':
             B[i] = T_avg_up[i] - T_avg_down[i] * R - math.as_tensor(surface_temperature + 273.15) * kappa
 
         #########################################################################
-        percentage = np.linspace(0.2, 0.7, 10, endpoint=True)[::-1]
+        percentage = np.linspace(0.2, 0.7, 15, endpoint=True)[::-1]
         #########################################################################
 
         start_time = datetime.datetime.now()
