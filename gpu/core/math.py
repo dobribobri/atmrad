@@ -76,7 +76,7 @@ def zeros_like(a: Union[Number, TensorLike]) -> TensorLike:
     return tf.zeros_like(a, dtype=gpu_float)
 
 
-def complex_(real: float, imag: float = 0.) -> complex:
+def complex_(real: Union[Number, TensorLike], imag: Union[Number, TensorLike] = 0.) -> Union[Number, TensorLike]:
     return tf.complex(as_tensor(real), as_tensor(imag))
 
 
@@ -110,3 +110,12 @@ def move_axis(a: TensorLike, axis: int, destination: int) -> TensorLike:
 
 def linalg_solve(a: TensorLike, b: TensorLike):
     return tf.linalg.solve(a, b)
+
+
+def re(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+    return tf.math.real(a)
+
+
+def im(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+    return tf.math.imag(a)
+

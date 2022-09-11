@@ -26,7 +26,7 @@ if __name__ == '__main__':
     #########################################################################
     # domain parameters
     H = 20.  # высота атмосферы
-    d = 100  # дискретизация по высоте
+    d = 500  # дискретизация по высоте
     X = 10
     res = 10  # горизонтальная дискретизация
 
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     _c0 = 0.132574
     _c1 = 2.30215
 
-    cl_bottom = 1.5
+    cl_bottom = 1.
 
     #########################################################################
     # precomputes
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     T_cosmic = 2.72548
     for i, freq_pair in enumerate(frequency_pairs):
         k_rho = [krho(sa, f) for f in freq_pair]
-        k_w = [kw(f, t=-2.) for f in freq_pair]
+        k_w = math.as_tensor([kw(f, t=0.) for f in freq_pair])
         m = math.as_tensor([k_rho, k_w])
         M[i] = math.transpose(m)
 
@@ -117,17 +117,21 @@ if __name__ == '__main__':
              'Qr_mean', 'Wr_mean', 'Qrs', 'Wrs')]
 
     #####################
-    power_range = np.linspace(0, 5., 20)[::-1]
+    power_range = np.linspace(0, 5., 40)[::-1]
     #####################
 
     for pl, power in enumerate(power_range):
 
         hmap = np.zeros((res, res))
 
-        for i in range(res):
-            for j in range(res):
+        for i in range(0, res, 2):
+            for j in range(0, res, 2):
 
                 hmap[i, j] = power
+                hmap[i, j+1] = power
+                hmap[i+1, j] = power
+                hmap[i+1, j+1] = power
+
                 procentage = np.count_nonzero(hmap) / (res * res) * 100
 
                 print('\rpower = {:.1f}\tfill = {:.1f}%\t'.format(

@@ -76,8 +76,8 @@ def zeros_like(a: Union[Number, TensorLike]) -> TensorLike:
     return np.zeros_like(a, dtype=cpu_float)
 
 
-def complex_(real: float, imag: float = 0.) -> complex:
-    return np.complex(real, imag)
+def complex_(real: Union[Number, TensorLike], imag: Union[Number, TensorLike] = 0.) -> Union[Number, TensorLike]:
+    return real + 1j * imag
 
 
 def round_(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
@@ -110,3 +110,11 @@ def move_axis(a: TensorLike, axis: int, destination: int) -> TensorLike:
 
 def linalg_solve(a: TensorLike, b: TensorLike):
     return np.linalg.solve(a, b)
+
+
+def re(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+    return np.real(a)
+
+
+def im(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+    return np.imag(a)
