@@ -110,8 +110,6 @@ if __name__ == '__main__':
 
     #########################################################################
 
-    hmap = np.zeros((res, res))
-
     data = [('power', 'procentage', 'Q_mean', 'W_mean',
              'freq_pair_no', 'nu1', 'nu2', 'Qr_mean', 'Wr_mean', 'Qrs', 'Wrs')]
 
@@ -120,6 +118,9 @@ if __name__ == '__main__':
     #####################
 
     for pl, power in enumerate(power_range):
+
+        hmap = np.zeros((res, res))
+
         for i in range(res):
             for j in range(res):
 
