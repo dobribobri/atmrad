@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
         H_true_range = np.arange(cl_bottom + 0.12, 5. + 0.12, 0.1)
 
-        q_true = solid.Q
+        q_true = solid.Q.numpy()
 
         for jh, h_true in enumerate(H_true_range):
             print('\rTHETA is {:.1f}, \t\t {:.2f}%'.format(
