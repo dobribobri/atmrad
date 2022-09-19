@@ -170,7 +170,7 @@ if __name__ == '__main__':
                 ])
 
         with open('mdpi.bin', 'wb') as dump:
-            dill.dump(data, dump, recurse=True)
+            dill.dump(np.asarray(data, dtype=object), dump, recurse=True)
 
     with open('mdpi.bin', 'wb') as dump:
-        dill.dump(data, dump, recurse=True)
+        dill.dump(np.asarray(data, dtype=object), dump, recurse=True)
