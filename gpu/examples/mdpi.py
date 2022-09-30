@@ -18,6 +18,8 @@ from cpu.weight_funcs import krho
 from cpu.core.static.weight_funcs import kw
 import cpu.core.math as math
 
+from matplotlib import pyplot as plt
+
 
 if __name__ == '__main__':
 
@@ -108,7 +110,7 @@ if __name__ == '__main__':
 
         #########################################################################
 
-        H_true_range = np.arange(cl_bottom + 0.12, 5. + 0.12, 0.1)
+        H_true_range = np.arange(0.12, 5. + 0.12, 0.1)[::-1]
 
         q_true = solid.Q.numpy()
 
@@ -122,16 +124,36 @@ if __name__ == '__main__':
 
             height_range = np.insert(np.linspace(h_true * 0.9, h_true * 1.1, 20, endpoint=True), 0, h_true)
 
+            # height_range = np.array([1, 3, 5])
+
             solid.liquid_water = Cloudiness3D(kilometers=(1, 1 * len(height_range), H),
                                               nodes=(1, len(height_range), d), clouds_bottom=cl_bottom).liquid_water(
                 np.asarray([height_range]), const_w=False, _w=lambda _H: _c0 * np.power(_H, _c1)
             )
+
+            # plt.figure()
+            # plt.plot(solid.liquid_water[0, 0], np.linspace(0, H, len(solid.liquid_water[0, 0])),
+            #          color='black', linewidth=2., label='(1)', linestyle=':')
+            # plt.plot(solid.liquid_water[0, 1], np.linspace(0, H, len(solid.liquid_water[0, 1])),
+            #          color='black', linewidth=2., label='(2)', linestyle='--')
+            # plt.plot(solid.liquid_water[0, 2], np.linspace(0, H, len(solid.liquid_water[0, 1])),
+            #          color='black', linewidth=2., label='(3)', linestyle='-')
+            # plt.ylim((0, 7.5))
+            # plt.xlabel('Liquid water amount, kg/m$^3$')
+            # plt.ylabel('Altitude, km')
+            # plt.legend(loc='best', frameon=False)
+            # plt.savefig('LWprofile.png', dpi=300)
+            # plt.show()
 
             solid_brts = {}
             for nu in frequencies:
                 solid_brt = satellite.brightness_temperature(nu, solid, surface, cosmic=True, __theta=angle)[0]
                 solid_brt = np.asarray(solid_brt, dtype=float)
                 solid_brts[nu] = solid_brt
+
+                # solid_tau = solid.opacity.summary(nu, angle)[0]
+                # solid_tau = np.asarray(solid_tau, dtype=float)
+                # print(solid_tau)
 
             for i, (nu1, nu2) in enumerate(frequency_pairs):
                 a, b = A[i], B[i]
