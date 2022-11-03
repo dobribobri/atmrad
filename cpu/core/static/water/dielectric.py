@@ -27,17 +27,17 @@ def epsilon(T: Union[float, TensorLike],
 
 
 def epsilon_complex(frequency: float, T: Union[float, TensorLike],
-                    Sw: Union[float, TensorLike] = 0., mode=1) -> Union[complex, TensorLike]:
+                    Sw: Union[float, TensorLike] = 0., mode='Rec.ITU-R P.840-8') -> Union[complex, TensorLike]:
     """
     Комплексная диэлектрическая проницаемость воды
 
     :param frequency: частота излучения в ГГц
     :param T: термодинамическая температура воды, град. Цельс.
     :param Sw: соленость, промили
-    :param mode: № модели
+    :param mode: выбор модели
     """
 
-    if mode == 0:
+    if mode in [0, 'one-dimensional']:   # One-dimensional Debye formula
         lamda = C / (frequency * 10 ** 9) * 100  # перевод в [cm]
         epsO, epsS, lambdaS = epsilon(T, Sw)
         y = lambdaS / lamda
@@ -45,10 +45,10 @@ def epsilon_complex(frequency: float, T: Union[float, TensorLike],
         eps2 = y * (epsS - epsO) / (1 + y * y)
         sigma = 0.00001 * (2.63 * T + 77.5) * Sw
         eps2 = eps2 + 60 * sigma * lamda
-        return math.complex_(eps1, -eps2)       # почему минус??
-        # return math.complex_(eps1, eps2)
-        # return eps1 - 1j * eps2
+        # return math.complex_(eps1, -eps2)       # почему минус??
+        return math.complex_(eps1, eps2)
 
+    # Two-dimensional
     # Rec. ITU-R 840    # 840-8 - in force, main
     f = frequency
     theta = 300 / (T + 273.15)
