@@ -13,13 +13,19 @@ def kw(frequency: float, t: Union[float, Tensor1D_or_3D], mode='840-8') -> Union
     :param mode: модель расчета диэлектрической проницаемости
     :return: весовая функция k_w (вода в жидкокапельной фазе).
     """
-    # Б.Г. Кутуза (1)
     if mode in [1, 'one-dimensional']:
         lamda = C / (frequency * 10 ** 9) * 100  # перевод в [cm]
         eps = dielectric.epsilon_complex(frequency, t, mode='one-dimensional')
-        return 0.6 * PI / lamda * math.im((eps - 1) / (eps + 2))
+        return -0.6 * PI / lamda * math.im((eps - 1) / (eps + 2))
 
-    # Б.Г. Кутуза (2)
+    # if mode in ['one-dimensional-wrong']:
+    #     lamda = C / (frequency * 10 ** 9) * 100  # перевод в [cm]
+    #     eps = dielectric.epsilon_complex(frequency, t, mode='one-dimensional')
+    #     re = math.re(eps)
+    #     im = -math.im(eps)
+    #     eps = math.complex_(re, im)
+    #     return 0.6 * PI / lamda * math.im((eps - 1) / (eps + 2))
+
     if mode in [2, 'one-dimensional-simplified']:
         lamda = C / (frequency * 10 ** 9) * 100  # перевод в [cm]
         epsO, epsS, lambdaS = dielectric.epsilon(t, 0.)
@@ -30,13 +36,21 @@ def kw(frequency: float, t: Union[float, Tensor1D_or_3D], mode='840-8') -> Union
     if mode in [3, 'two-dimensional-c']:
         lamda = C / (frequency * 10 ** 9) * 100  # перевод в [cm]
         eps = dielectric.epsilon_complex(frequency, t, mode='two-dimensional')
-        return 0.6 * PI / lamda * math.im((eps - 1) / (eps + 2))
+        return -0.6 * PI / lamda * math.im((eps - 1) / (eps + 2))
+
+    # if mode in ['two-dimensional-c-wrong']:
+    #     lamda = C / (frequency * 10 ** 9) * 100  # перевод в [cm]
+    #     eps = dielectric.epsilon_complex(frequency, t, mode='two-dimensional')
+    #     re = math.re(eps)
+    #     im = -math.im(eps)
+    #     eps = math.complex_(re, im)
+    #     return 0.6 * PI / lamda * math.im((eps - 1) / (eps + 2))
 
     if mode in [4, 'two-dimensional-b']:
         f = frequency
         eps = dielectric.epsilon_complex(f, t, mode='two-dimensional')
         re = math.re(eps)
-        im = math.im(eps)
+        im = -math.im(eps)
         eta = (2 + re) / im
         return 0.819 * f / (im * (1 + eta * eta)) * dB2np
 
@@ -44,7 +58,7 @@ def kw(frequency: float, t: Union[float, Tensor1D_or_3D], mode='840-8') -> Union
     f = frequency
     eps = dielectric.epsilon_complex(f, t, mode='two-dimensional')
     re = math.re(eps)
-    im = math.im(eps)
+    im = -math.im(eps)
     eta = (2 + re) / im
     return 0.819 * (1.9479 / 10000 * math.pow_(f, 2.308) +
                     2.9424 * math.pow_(f, 0.7436) - 4.9451) / (im * (1 + eta * eta)) * dB2np

@@ -44,7 +44,7 @@ def epsilon_complex(frequency: float, T: Union[float, TensorLike],
         eps2 = y * (epsS - epsO) / (1 + y * y)
         sigma = 0.00001 * (2.63 * T + 77.5) * Sw
         eps2 = eps2 + 60 * sigma * lamda
-        return math.complex_(eps1, eps2)
+        return math.complex_(eps1, -eps2)
 
     # Two-dimensional
     # Rec. ITU-R 840    # 840-8 - in force, main
@@ -63,4 +63,4 @@ def epsilon_complex(frequency: float, T: Union[float, TensorLike],
         f * (eps1 - eps2) / (fs * (1 + (f / fs) * (f / fs)))
     re = (eps0 - eps1) / (1 + (f / fp) * (f / fp)) + \
          (eps1 - eps2) / (1 + (f / fs) * (f / fs)) + eps2
-    return math.complex_(re, im)
+    return math.complex_(re, -im)
