@@ -45,7 +45,7 @@ def ex1():
     # atmosphere.effective_cloud_temperature = -2.
     atmosphere.integration_method = 'boole'
 
-    atmosphere.angle = 30. * np.pi / 180.
+    atmosphere.angle = 0. * np.pi / 180.
     # atmosphere.horizontal_extent = 50.  # km
     atmosphere.incline = 'left'
 
@@ -351,6 +351,6 @@ if __name__ == '__main__':
     # for a in /sys/bus/pci/devices/*; do echo 0 | sudo tee -a $a/numa_node; done
 
     # test1()
-    # ex1()
+    ex1()
     # ex3()
-    test2()
+    # test2()

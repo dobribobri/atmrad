@@ -15,15 +15,15 @@ def do(processes: list, n_workers: int) -> None:
                 processes[j].join()
 
 
-def parallel(frequencies: Union[np.ndarray, List[float]],
+def parallel(enumerable: Union[np.ndarray, List[float]],
              func: Callable, args: Union[Tuple, List],
              n_workers: int) -> np.ndarray:
     if not n_workers:
-        n_workers = len(frequencies)
+        n_workers = len(enumerable)
     with Manager() as manager:
         out = manager.list()
         processes = []
-        for i, f in enumerate(frequencies):
+        for i, f in enumerate(enumerable):
             p = Process(target=out.append, args=((i, func(f, *args)),))
             processes.append(p)
         do(processes, n_workers)

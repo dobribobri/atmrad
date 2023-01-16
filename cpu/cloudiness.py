@@ -149,7 +149,8 @@ class Plank3D(Domain3D):
                 K / alpha * (np.exp(-alpha * D) - np.exp(-alpha * (D + eps)))
             ))
             if n < 1:
-                print('\nw: отсутствуют облака диаметром {}'.format(D))
+                if verbose:
+                    print('\nw: отсутствуют облака диаметром {}'.format(D))
                 continue
             for k in range(n):
                 start_time = time.time()
