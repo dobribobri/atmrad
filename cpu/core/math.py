@@ -118,3 +118,11 @@ def re(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
 
 def im(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
     return np.imag(a)
+
+
+def linalg_lstsq(a: TensorLike, b: TensorLike):
+    return np.linalg.lstsq(a, b, rcond=None)
+
+
+def reshape(a, newshape):
+    return np.reshape(a, newshape)
