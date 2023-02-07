@@ -122,7 +122,7 @@ def im(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
 
 
 def linalg_lstsq(a: TensorLike, b: TensorLike):
-    return np.linalg.lstsq(a, b, rcond=None)
+    return np.linalg.lstsq(a, b, rcond=None)[0]
 
 
 def reshape(a: TensorLike, newshape) -> TensorLike:
