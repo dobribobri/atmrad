@@ -2,6 +2,7 @@
 from typing import Union, List, Tuple
 from gpu.core.types import Number, TensorLike, gpu_float
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 
 def rank(a: Union[Number, TensorLike]) -> int:
@@ -120,9 +121,13 @@ def im(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
     return tf.math.imag(a)
 
 
-def linalg_lstsq(a: TensorLike, b: TensorLike):
+def linalg_lstsq(a: TensorLike, b: TensorLike) -> TensorLike:
     return tf.linalg.lstsq(a, b)
 
 
-def reshape(a, newshape):
+def reshape(a: TensorLike, newshape) -> TensorLike:
     return tf.reshape(a, newshape)
+
+
+def lambertw(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+    return tfp.math.lambertw(a, name=None)

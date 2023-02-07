@@ -2,6 +2,7 @@
 from typing import Union, List, Tuple
 from cpu.core.types import Number, TensorLike, cpu_float
 import numpy as np
+from scipy.special import lambertw as wk
 
 
 def rank(a: Union[Number, TensorLike]) -> int:
@@ -124,5 +125,9 @@ def linalg_lstsq(a: TensorLike, b: TensorLike):
     return np.linalg.lstsq(a, b, rcond=None)
 
 
-def reshape(a, newshape):
+def reshape(a: TensorLike, newshape) -> TensorLike:
     return np.reshape(a, newshape)
+
+
+def lambertw(a: Union[Number, TensorLike]) -> Union[Number, TensorLike]:
+    return wk(a, k=0)
