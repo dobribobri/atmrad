@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import os
-import sys
-import warnings
+# import os
+# import sys
+# import warnings
 import dill
 import datetime
 import numpy as np
-from collections import defaultdict
+# from collections import defaultdict
 
 from gpu.atmosphere import Atmosphere
 from gpu.surface import SmoothWaterSurface
@@ -18,57 +18,93 @@ from cpu.weight_funcs import krho
 from cpu.core.static.weight_funcs import kw
 import cpu.core.math as math
 
+
+class Stat:
+    def __init__(self, variable):
+        self.mean = np.mean(variable)
+        self.min = np.min(variable)
+        self.max = np.max(variable)
+        self.var = np.var(variable)
+        self.std = np.std(variable)
+
+
 if __name__ == '__main__':
 
     # THETAS = [0., 10., 20., 30., 40., 51.]
     THETAS = [0.]
 
     data = [(
-        'angle', 'distr_no', 'required_percentage', 'kernel',
+        'angle',    # угол наблюдения
+        'distr_no',     # порядковый номер планковского распределения
+        'distr_name',    # название распределения
+        'alpha', 'Dm', 'dm', 'eta', 'beta', 'cl_bottom',    # параметры распределения
+        'xi', 'K',    # ещё параметры (K зависит от %)
+        'required_percentage',    # % покрытия облаками (cloud amount)
+        'kernel',    # ядро усреднения / размер эл-та разрешения радиометра в узлах
 
-        'Q_mean', 'W_mean',
-        'efl_Hs_mean',
-        'Q_max', 'W_max',
-        'efl_Hs_max',
-        'Q_min', 'W_min',
-        'efl_Hs_min',
-        'Q_var', 'W_var',
-        'efl_Hs_var',
+        'Q_true', 'W_true',    # статистика на истинные средние значения TWV и LWC
+        'efl_H',    # статистика на высоту эквивалентного по водозапасу сплошного слоя облачности
 
-        'freq_pair_no', 'nu1', 'nu2',
+        'freq_pair_no', 'nu1', 'nu2',    # порядковый номер пары частот, сами частоты
 
-        'tb_nu1_mean', 'tb_nu2_mean',
-        'tau_nu1_mean', 'tau_nu2_mean',
-        'efl_tb_nu1_mean', 'efl_tb_nu2_mean',
-        'efl_tau_nu1_mean', 'efl_tau_nu2_mean',
-        'Qr_mean', 'Wr_mean',
-        'Qrs_mean', 'Wrs_mean',
-        'efl_Qrss_mean', 'efl_Wrss_mean',
+        # статистика в элементе разрешения
+        'tb_nu1', 'tb_nu2',    # яркостные температуры
+        'tau_nu1', 'tau_nu2',    # коэффициент полного поглощения
+        'efl_tb_nu1', 'efl_tb_nu2',    # яркостная температура для эквивалентного по водозапасу сплошного слоя
+        'efl_tau_nu1', 'efl_tau_nu2',    # полное поглощения для эквивалентного по водозапасу сплошного слоя
 
-        'tb_nu1_max', 'tb_nu2_max',
-        'tau_nu1_max', 'tau_nu2_max',
-        'efl_tb_nu1_max', 'efl_tb_nu2_max',
-        'efl_tau_nu1_max', 'efl_tau_nu2_max',
-        'Qr_max', 'Wr_max',
-        'Qrs_max', 'Wrs_max',
-        'efl_Qrss_max', 'efl_Wrss_max'
+        # статистика в элементе разрешения - восстановление TWV и LWC
+        'Qr', 'Wr',    # сначала решение обратной задачи, затем усреднение полученных 2D-карт TWV и LWC
+        'Qrs', 'Wrs',    # сначала усреднение 2D-карт яркостной температуры, затем решение обратной задачи
+        'efl_Qrss', 'efl_Wrss',    # TWV и LWC, восстановленные по яркостной температуре эквивалентного сплошного слоя
+    )]
 
-        'tb_nu1_min', 'tb_nu2_min',
-        'tau_nu1_min', 'tau_nu2_min',
-        'efl_tb_nu1_min', 'efl_tb_nu2_min',
-        'efl_tau_nu1_min', 'efl_tau_nu2_min',
-        'Qr_min', 'Wr_min',
-        'Qrs_min', 'Wrs_min',
-        'efl_Qrss_min', 'efl_Wrss_min',
-
-        'tb_nu1_var', 'tb_nu2_var',
-        'tau_nu1_var', 'tau_nu2_var',
-        'efl_tb_nu1_var', 'efl_tb_nu2_var',
-        'efl_tau_nu1_var', 'efl_tau_nu2_var',
-        'Qr_var', 'Wr_var',
-        'Qrs_var', 'Wrs_var',
-        'efl_Qrss_var', 'efl_Wrss_var')
-    ]
+    # data = [(
+    #      'angle', 'distr_no', 'required_percentage', 'kernel',
+    #
+    #      'Q_mean', 'W_mean',
+    #      'efl_Hs_mean',
+    #      'Q_max', 'W_max',
+    #      'efl_Hs_max',
+    #      'Q_min', 'W_min',
+    #      'efl_Hs_min',
+    #      'Q_var', 'W_var',
+    #      'efl_Hs_var',
+    #
+    #      'freq_pair_no', 'nu1', 'nu2',
+    #
+    #      'tb_nu1_mean', 'tb_nu2_mean',
+    #      'tau_nu1_mean', 'tau_nu2_mean',
+    #      'efl_tb_nu1_mean', 'efl_tb_nu2_mean',
+    #      'efl_tau_nu1_mean', 'efl_tau_nu2_mean',
+    #      'Qr_mean', 'Wr_mean',
+    #      'Qrs_mean', 'Wrs_mean',
+    #      'efl_Qrss_mean', 'efl_Wrss_mean',
+    #
+    #      'tb_nu1_max', 'tb_nu2_max',
+    #      'tau_nu1_max', 'tau_nu2_max',
+    #      'efl_tb_nu1_max', 'efl_tb_nu2_max',
+    #      'efl_tau_nu1_max', 'efl_tau_nu2_max',
+    #      'Qr_max', 'Wr_max',
+    #      'Qrs_max', 'Wrs_max',
+    #      'efl_Qrss_max', 'efl_Wrss_max'
+    #
+    #      'tb_nu1_min', 'tb_nu2_min',
+    #      'tau_nu1_min', 'tau_nu2_min',
+    #      'efl_tb_nu1_min', 'efl_tb_nu2_min',
+    #      'efl_tau_nu1_min', 'efl_tau_nu2_min',
+    #      'Qr_min', 'Wr_min',
+    #      'Qrs_min', 'Wrs_min',
+    #      'efl_Qrss_min', 'efl_Wrss_min',
+    #
+    #      'tb_nu1_var', 'tb_nu2_var',
+    #      'tau_nu1_var', 'tau_nu2_var',
+    #      'efl_tb_nu1_var', 'efl_tb_nu2_var',
+    #      'efl_tau_nu1_var', 'efl_tau_nu2_var',
+    #      'Qr_var', 'Wr_var',
+    #      'Qrs_var', 'Wrs_var',
+    #      'efl_Qrss_var', 'efl_Wrss_var')
+    # ]
 
     for THETA in THETAS:
 
@@ -81,7 +117,7 @@ if __name__ == '__main__':
 
         # observation parameters
         # angle = 0.
-        angle = THETA * np.pi / 180.  # зенитный угол наблюдения, по умолчанию: 0
+        angle = THETA * np.pi / 180.             # зенитный угол наблюдения, по умолчанию: 0
         incline = 'left'
         # incline = 'right'
         integration_method = 'trapz'
@@ -132,10 +168,12 @@ if __name__ == '__main__':
         #########################################################################
         # distribution parameters
         distributions = [
-            {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
-            {'name': 'L2B', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': -0.9, 'cl_bottom': 1.2192},
-            {'name': 'L2E', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': 0.3, 'cl_bottom': 1.2192},
-            {'name': 'L2Z', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': -0.9, 'cl_bottom': 1.2192},
+            {'name': 'L2B', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
+
+            # {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
+            # {'name': 'L2B', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': -0.9, 'cl_bottom': 1.2192},
+            # {'name': 'L2E', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': 0.3, 'cl_bottom': 1.2192},
+            # {'name': 'L2Z', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': -0.9, 'cl_bottom': 1.2192},
 
             # {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
             # {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
@@ -193,7 +231,7 @@ if __name__ == '__main__':
                 distr['alpha'], distr['Dm'], distr['dm'], distr['eta'], distr['beta'], distr['cl_bottom']
 
             xi = -np.exp(-alpha * Dm) * (((alpha * Dm) ** 2) / 2 + alpha * Dm + 1) + \
-                 np.exp(-alpha * dm) * (((alpha * dm) ** 2) / 2 + alpha * dm + 1)
+                np.exp(-alpha * dm) * (((alpha * dm) ** 2) / 2 + alpha * dm + 1)
             print('xi\t', xi)
 
             for ID, required_percentage in enumerate(percentage):
@@ -237,6 +275,7 @@ if __name__ == '__main__':
                 brts = {}
                 taus = {}
                 for nu in frequencies:
+
                     brt = satellite.brightness_temperature(nu, atmosphere, surface, cosmic=True)
 
                     brt = np.asarray(brt, dtype=float)
@@ -252,8 +291,8 @@ if __name__ == '__main__':
 
                 nx, ny = brts[frequencies[0]].shape
                 if incline == 'left':
-                    W = atmosphere.W[res - nx:, :]
-                    Q = Q[res - nx:, :]
+                    W = atmosphere.W[res-nx:, :]
+                    Q = Q[res-nx:, :]
                 else:
                     W = atmosphere.W[:nx, :]
                     Q = Q[:nx, :]
@@ -356,50 +395,100 @@ if __name__ == '__main__':
 
                         ###############################################################################################
 
+                        # data = [(
+                        #     'angle',
+                        #     'distr_no',
+                        #     'distr_name',
+                        #     'alpha', 'Dm', 'dm', 'eta', 'beta', 'cl_bottom',
+                        #     'xi', 'K',
+                        #     'required_percentage',
+                        #     'kernel',
+                        #
+                        #     'Q_true', 'W_true',
+                        #     'efl_H',
+                        #
+                        #     'freq_pair_no', 'nu1', 'nu2',
+                        #
+                        #     'tb_nu1', 'tb_nu2',
+                        #     'tau_nu1', 'tau_nu2',
+                        #     'efl_tb_nu1', 'efl_tb_nu2',
+                        #     'efl_tau_nu1', 'efl_tau_nu2',
+                        #
+                        #     'Qr', 'Wr',
+                        #     'Qrs', 'Wrs',
+                        #     'efl_Qrss', 'efl_Wrss',
+                        # )]
+
                         data.append(
-                            [THETA, distr_no, required_percentage, kernel,
-                             np.mean(conv_Q_mean), np.mean(conv_W_mean),
-                             np.mean(conv_Hs),
-                             np.max(conv_Q_mean), np.max(conv_W_mean),
-                             np.max(conv_Hs),
-                             np.min(conv_Q_mean), np.min(conv_W_mean),
-                             np.min(conv_Hs),
-                             np.var(conv_Q_mean), np.var(conv_W_mean),
-                             np.var(conv_Hs),
+                            [THETA,
+                             distr_no,
+                             distr['name'],
+                             alpha, Dm, dm, eta, beta, cl_bottom,
+                             xi, K,
+                             required_percentage,
+                             kernel,
+
+                             Stat(conv_Q_mean), Stat(conv_W_mean),
+                             Stat(conv_Hs),
+
                              i, nu1, nu2,
-                             np.mean(conv_brts_mean[nu1]), np.mean(conv_brts_mean[nu2]),
-                             np.mean(conv_taus_mean[nu1]), np.mean(conv_taus_mean[nu2]),
-                             np.mean(solid_brts[nu1]), np.mean(solid_brts[nu2]),
-                             np.mean(solid_taus[nu1]), np.mean(solid_taus[nu2]),
-                             np.mean(conv_Qr_mean), np.mean(conv_Wr_mean),
-                             np.mean(conv_Qrs), np.mean(conv_Wrs),
-                             np.mean(conv_Qrss), np.mean(conv_Wrss),
 
-                             np.max(conv_brts_mean[nu1]), np.max(conv_brts_mean[nu2]),
-                             np.max(conv_taus_mean[nu1]), np.max(conv_taus_mean[nu2]),
-                             np.max(solid_brts[nu1]), np.max(solid_brts[nu2]),
-                             np.max(solid_taus[nu1]), np.max(solid_taus[nu2]),
-                             np.max(conv_Qr_mean), np.max(conv_Wr_mean),
-                             np.max(conv_Qrs), np.max(conv_Wrs),
-                             np.max(conv_Qrss), np.max(conv_Wrss),
+                             Stat(conv_brts_mean[nu1]), Stat(conv_brts_mean[nu2]),
+                             Stat(conv_taus_mean[nu1]), Stat(conv_taus_mean[nu2]),
+                             Stat(solid_brts[nu1]), Stat(solid_brts[nu2]),
+                             Stat(solid_taus[nu1]), Stat(solid_taus[nu2]),
 
-                             np.min(conv_brts_mean[nu1]), np.min(conv_brts_mean[nu2]),
-                             np.min(conv_taus_mean[nu1]), np.min(conv_taus_mean[nu2]),
-                             np.min(solid_brts[nu1]), np.min(solid_brts[nu2]),
-                             np.min(solid_taus[nu1]), np.min(solid_taus[nu2]),
-                             np.min(conv_Qr_mean), np.min(conv_Wr_mean),
-                             np.min(conv_Qrs), np.min(conv_Wrs),
-                             np.min(conv_Qrss), np.min(conv_Wrss),
-
-                             np.var(conv_brts_mean[nu1]), np.var(conv_brts_mean[nu2]),
-                             np.var(conv_taus_mean[nu1]), np.var(conv_taus_mean[nu2]),
-                             np.var(solid_brts[nu1]), np.var(solid_brts[nu2]),
-                             np.var(solid_taus[nu1]), np.var(solid_taus[nu2]),
-                             np.var(conv_Qr_mean), np.var(conv_Wr_mean),
-                             np.var(conv_Qrs), np.var(conv_Wrs),
-                             np.var(conv_Qrss), np.var(conv_Wrss),
+                             Stat(conv_Qr_mean), Stat(conv_Wr_mean),
+                             Stat(conv_Qrs), Stat(conv_Wrs),
+                             Stat(conv_Qrss), Stat(conv_Wrss),
                              ]
                         )
+
+                        # data.append(
+                        #     [THETA, distr_no, required_percentage, kernel,
+                        #      np.mean(conv_Q_mean), np.mean(conv_W_mean),
+                        #      np.mean(conv_Hs),
+                        #      np.max(conv_Q_mean), np.max(conv_W_mean),
+                        #      np.max(conv_Hs),
+                        #      np.min(conv_Q_mean), np.min(conv_W_mean),
+                        #      np.min(conv_Hs),
+                        #      np.var(conv_Q_mean), np.var(conv_W_mean),
+                        #      np.var(conv_Hs),
+                        #
+                        #      i, nu1, nu2,
+                        #      np.mean(conv_brts_mean[nu1]), np.mean(conv_brts_mean[nu2]),
+                        #      np.mean(conv_taus_mean[nu1]), np.mean(conv_taus_mean[nu2]),
+                        #      np.mean(solid_brts[nu1]), np.mean(solid_brts[nu2]),
+                        #      np.mean(solid_taus[nu1]), np.mean(solid_taus[nu2]),
+                        #      np.mean(conv_Qr_mean), np.mean(conv_Wr_mean),
+                        #      np.mean(conv_Qrs), np.mean(conv_Wrs),
+                        #      np.mean(conv_Qrss), np.mean(conv_Wrss),
+                        #
+                        #      np.max(conv_brts_mean[nu1]), np.max(conv_brts_mean[nu2]),
+                        #      np.max(conv_taus_mean[nu1]), np.max(conv_taus_mean[nu2]),
+                        #      np.max(solid_brts[nu1]), np.max(solid_brts[nu2]),
+                        #      np.max(solid_taus[nu1]), np.max(solid_taus[nu2]),
+                        #      np.max(conv_Qr_mean), np.max(conv_Wr_mean),
+                        #      np.max(conv_Qrs), np.max(conv_Wrs),
+                        #      np.max(conv_Qrss), np.max(conv_Wrss),
+                        #
+                        #      np.min(conv_brts_mean[nu1]), np.min(conv_brts_mean[nu2]),
+                        #      np.min(conv_taus_mean[nu1]), np.min(conv_taus_mean[nu2]),
+                        #      np.min(solid_brts[nu1]), np.min(solid_brts[nu2]),
+                        #      np.min(solid_taus[nu1]), np.min(solid_taus[nu2]),
+                        #      np.min(conv_Qr_mean), np.min(conv_Wr_mean),
+                        #      np.min(conv_Qrs), np.min(conv_Wrs),
+                        #      np.min(conv_Qrss), np.min(conv_Wrss),
+                        #
+                        #      np.var(conv_brts_mean[nu1]), np.var(conv_brts_mean[nu2]),
+                        #      np.var(conv_taus_mean[nu1]), np.var(conv_taus_mean[nu2]),
+                        #      np.var(solid_brts[nu1]), np.var(solid_brts[nu2]),
+                        #      np.var(solid_taus[nu1]), np.var(solid_taus[nu2]),
+                        #      np.var(conv_Qr_mean), np.var(conv_Wr_mean),
+                        #      np.var(conv_Qrs), np.var(conv_Wrs),
+                        #      np.var(conv_Qrss), np.var(conv_Wrss),
+                        #      ]
+                        # )
 
             with open('post_data.bin', 'wb') as dump:
                 dill.dump(np.array(data, dtype=object), dump, recurse=True)
