@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# import os
+import os
 # import sys
 # import warnings
 import dill
@@ -167,26 +167,25 @@ if __name__ == '__main__':
 
         #########################################################################
         # distribution parameters
-        distributions = [
-            {'name': 'L2B', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
+        base_distributions = [
 
-            # {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
+            {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
             # {'name': 'L2B', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': -0.9, 'cl_bottom': 1.2192},
             # {'name': 'L2E', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': 0.3, 'cl_bottom': 1.2192},
             # {'name': 'L2Z', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': -0.9, 'cl_bottom': 1.2192},
 
-            # {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
-            # {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
-            # {'name': 'T6', 'alpha': 1.398, 'Dm': 3.376, 'dm': 0.03048, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 1.0668},
-            # {'name': 'T8', 'alpha': 1.485, 'Dm': 4.02, 'dm': 0.06096, 'eta': 1.2, 'beta': 0.4, 'cl_bottom': 1.3716},
-            # {'name': 'T9', 'alpha': 2.485, 'Dm': 2.656, 'dm': 0.04572, 'eta': 1.3, 'beta': 0.3, 'cl_bottom': 1.40208},
-            #
-            # {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
-            # {'name': 'T5', 'alpha': 2.051, 'Dm': 2.574, 'dm': 0.02286, 'eta': 0.85, 'beta': -0.13, 'cl_bottom': 1.11252},
-            # {'name': 'T3', 'alpha': 2.361, 'Dm': 2.092, 'dm': 0.01524, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 0.82296},
-            # {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
-            # {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
-            # {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
+            {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
+            {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
+            {'name': 'T6', 'alpha': 1.398, 'Dm': 3.376, 'dm': 0.03048, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 1.0668},
+            {'name': 'T8', 'alpha': 1.485, 'Dm': 4.02, 'dm': 0.06096, 'eta': 1.2, 'beta': 0.4, 'cl_bottom': 1.3716},
+            {'name': 'T9', 'alpha': 2.485, 'Dm': 2.656, 'dm': 0.04572, 'eta': 1.3, 'beta': 0.3, 'cl_bottom': 1.40208},
+
+            {'name': 'L1', 'alpha': 3.853, 'Dm': 1.448, 'dm': 0.01524, 'eta': 0.98, 'beta': 0.0, 'cl_bottom': 0.54864},
+            {'name': 'T5', 'alpha': 2.051, 'Dm': 2.574, 'dm': 0.02286, 'eta': 0.85, 'beta': -0.13, 'cl_bottom': 1.11252},
+            {'name': 'T3', 'alpha': 2.361, 'Dm': 2.092, 'dm': 0.01524, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 0.82296},
+            {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
+            {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
+            {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
         ]
         seed = 42
 
@@ -222,6 +221,20 @@ if __name__ == '__main__':
         percentage = np.linspace(0.2, 0.7, 15, endpoint=True)[::-1]
         #########################################################################
 
+        distributions = []
+        for base_distr in base_distributions:
+            distributions.append(base_distr)
+            for i, beta in enumerate(np.arange(-0.9, 0.9, 0.1)):
+                new_distr = base_distr.copy()
+                new_distr['name'] += 'B' + str(i).zfill(2)
+                new_distr['beta'] = np.round(beta, decimals=1)
+                distributions.append(new_distr)
+            for j, eta in enumerate(np.arange(0.53, 1.83, 0.1)):
+                new_distr = base_distr.copy()
+                new_distr['name'] += 'E' + str(j).zfill(2)
+                new_distr['eta'] = np.round(eta, decimals=2)
+                distributions.append(new_distr)
+
         start_time = datetime.datetime.now()
 
         for distr_no, distr in enumerate(distributions):
@@ -241,29 +254,35 @@ if __name__ == '__main__':
                 K = 2 * np.power(alpha, 3) * (X * X * required_percentage) / (np.pi * xi)
                 print('K\t', K)
 
+                with open(os.path.join('HMAP',
+                                       distr['name'] + '_P' + str(
+                                           int(np.round(required_percentage * 100., decimals=0))) + '.map'),
+                          'wb') as file:
+                    hmap = dill.load(file)
+
                 p = Plank3D(kilometers=(X, X, H), nodes=(res, res, d), clouds_bottom=cl_bottom)
-                print('Generating cloud distribution...')
-                try:
-                    clouds = p.generate_clouds(
-                        Dm=Dm, dm=dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=1., verbose=True
-                    )
-                except TimeoutError:
-                    print('\n ...time is over')
-                    continue
+                # print('Generating cloud distribution...')
+                # try:
+                #     clouds = p.generate_clouds(
+                #         Dm=Dm, dm=dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=1., verbose=True
+                #     )
+                # except TimeoutError:
+                #     print('\n ...time is over')
+                #     continue
 
-                N_analytical = K / alpha * (np.exp(-alpha * dm) - np.exp(-alpha * Dm))
-                N_fact = len(clouds)
-                print('N\tanalytical: {}\t\tactual: {}'.format(N_analytical, N_fact))
+                # N_analytical = K / alpha * (np.exp(-alpha * dm) - np.exp(-alpha * Dm))
+                # N_fact = len(clouds)
+                # print('N\tanalytical: {}\t\tactual: {}'.format(N_analytical, N_fact))
 
-                hmap = p.height_map2d_(clouds)
+                # hmap = p.height_map2d_(clouds)
 
-                sky_cover = np.sum(np.pi * np.power(np.array([cloud.rx for cloud in clouds]), 2))
-                cover_percentage = sky_cover / (X * X)
+                # sky_cover = np.sum(np.pi * np.power(np.array([cloud.rx for cloud in clouds]), 2))
+                # cover_percentage = sky_cover / (X * X)
                 cover_percentage_d = np.count_nonzero(hmap) / (res * res)
                 sky_cover_d = cover_percentage_d * (X * X)
                 # print('S\t before digitizing: {}\t\t after digitizing: {}'.format(sky_cover, sky_cover_d))
-                print('%\tbefore digitizing: {}\t\tafter digitizing: {}'.format(
-                    cover_percentage * 100., cover_percentage_d * 100.))
+                # print('%\tbefore digitizing: {}\t\tafter digitizing: {}'.format(
+                #     cover_percentage * 100., cover_percentage_d * 100.))
 
                 print('Simulating liquid water distribution 3D...')
                 atmosphere.liquid_water = p.liquid_water_(hmap2d=hmap,
