@@ -202,7 +202,7 @@ if __name__ == '__main__':
                 with open(os.path.join('HMAP',
                                        distr['name'] + '_P' + str(
                                            int(np.round(required_percentage * 100., decimals=0))) + '.map'),
-                          'wb') as file:
+                          'rb') as file:
                     hmap = dill.load(file)
 
                 p = Plank3D(kilometers=(X, X, H), nodes=(res, res, d), clouds_bottom=cl_bottom)
