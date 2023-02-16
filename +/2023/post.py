@@ -59,53 +59,6 @@ if __name__ == '__main__':
         'efl_Qrss', 'efl_Wrss',    # TWV и LWC, восстановленные по яркостной температуре эквивалентного сплошного слоя
     )]
 
-    # data = [(
-    #      'angle', 'distr_no', 'required_percentage', 'kernel',
-    #
-    #      'Q_mean', 'W_mean',
-    #      'efl_Hs_mean',
-    #      'Q_max', 'W_max',
-    #      'efl_Hs_max',
-    #      'Q_min', 'W_min',
-    #      'efl_Hs_min',
-    #      'Q_var', 'W_var',
-    #      'efl_Hs_var',
-    #
-    #      'freq_pair_no', 'nu1', 'nu2',
-    #
-    #      'tb_nu1_mean', 'tb_nu2_mean',
-    #      'tau_nu1_mean', 'tau_nu2_mean',
-    #      'efl_tb_nu1_mean', 'efl_tb_nu2_mean',
-    #      'efl_tau_nu1_mean', 'efl_tau_nu2_mean',
-    #      'Qr_mean', 'Wr_mean',
-    #      'Qrs_mean', 'Wrs_mean',
-    #      'efl_Qrss_mean', 'efl_Wrss_mean',
-    #
-    #      'tb_nu1_max', 'tb_nu2_max',
-    #      'tau_nu1_max', 'tau_nu2_max',
-    #      'efl_tb_nu1_max', 'efl_tb_nu2_max',
-    #      'efl_tau_nu1_max', 'efl_tau_nu2_max',
-    #      'Qr_max', 'Wr_max',
-    #      'Qrs_max', 'Wrs_max',
-    #      'efl_Qrss_max', 'efl_Wrss_max'
-    #
-    #      'tb_nu1_min', 'tb_nu2_min',
-    #      'tau_nu1_min', 'tau_nu2_min',
-    #      'efl_tb_nu1_min', 'efl_tb_nu2_min',
-    #      'efl_tau_nu1_min', 'efl_tau_nu2_min',
-    #      'Qr_min', 'Wr_min',
-    #      'Qrs_min', 'Wrs_min',
-    #      'efl_Qrss_min', 'efl_Wrss_min',
-    #
-    #      'tb_nu1_var', 'tb_nu2_var',
-    #      'tau_nu1_var', 'tau_nu2_var',
-    #      'efl_tb_nu1_var', 'efl_tb_nu2_var',
-    #      'efl_tau_nu1_var', 'efl_tau_nu2_var',
-    #      'Qr_var', 'Wr_var',
-    #      'Qrs_var', 'Wrs_var',
-    #      'efl_Qrss_var', 'efl_Wrss_var')
-    # ]
-
     for THETA in THETAS:
 
         #########################################################################
@@ -140,11 +93,6 @@ if __name__ == '__main__':
         kernels = [6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 90, 120, 150, 240, 288]
         #########################################################################
 
-        # # create project folder
-        # folder = 'post_L2_kernel60_theta{}'.format(str(int(np.round(angle / np.pi * 180., decimals=0))).zfill(2))
-        # if not os.path.exists(folder):
-        #     os.makedirs(folder)
-
         #########################################################################
 
         atmosphere = Atmosphere.Standard(H=H, dh=H / d, T0=T0, P0=P0, rho0=rho0)  # для облачной атмосферы по Планку
@@ -166,13 +114,10 @@ if __name__ == '__main__':
         surface.angle = atmosphere.angle
 
         #########################################################################
-        # distribution parameters
+        # base distribution parameters
         base_distributions = [
 
             {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
-            # {'name': 'L2B', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': -0.9, 'cl_bottom': 1.2192},
-            # {'name': 'L2E', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': 0.3, 'cl_bottom': 1.2192},
-            # {'name': 'L2Z', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 1.5, 'beta': -0.9, 'cl_bottom': 1.2192},
 
             {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
             {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
@@ -261,28 +206,9 @@ if __name__ == '__main__':
                     hmap = dill.load(file)
 
                 p = Plank3D(kilometers=(X, X, H), nodes=(res, res, d), clouds_bottom=cl_bottom)
-                # print('Generating cloud distribution...')
-                # try:
-                #     clouds = p.generate_clouds(
-                #         Dm=Dm, dm=dm, K=K, alpha=alpha, beta=beta, eta=eta, seed=seed, timeout=1., verbose=True
-                #     )
-                # except TimeoutError:
-                #     print('\n ...time is over')
-                #     continue
 
-                # N_analytical = K / alpha * (np.exp(-alpha * dm) - np.exp(-alpha * Dm))
-                # N_fact = len(clouds)
-                # print('N\tanalytical: {}\t\tactual: {}'.format(N_analytical, N_fact))
-
-                # hmap = p.height_map2d_(clouds)
-
-                # sky_cover = np.sum(np.pi * np.power(np.array([cloud.rx for cloud in clouds]), 2))
-                # cover_percentage = sky_cover / (X * X)
                 cover_percentage_d = np.count_nonzero(hmap) / (res * res)
                 sky_cover_d = cover_percentage_d * (X * X)
-                # print('S\t before digitizing: {}\t\t after digitizing: {}'.format(sky_cover, sky_cover_d))
-                # print('%\tbefore digitizing: {}\t\tafter digitizing: {}'.format(
-                #     cover_percentage * 100., cover_percentage_d * 100.))
 
                 print('Simulating liquid water distribution 3D...')
                 atmosphere.liquid_water = p.liquid_water_(hmap2d=hmap,
@@ -414,30 +340,6 @@ if __name__ == '__main__':
 
                         ###############################################################################################
 
-                        # data = [(
-                        #     'angle',
-                        #     'distr_no',
-                        #     'distr_name',
-                        #     'alpha', 'Dm', 'dm', 'eta', 'beta', 'cl_bottom',
-                        #     'xi', 'K',
-                        #     'required_percentage',
-                        #     'kernel',
-                        #
-                        #     'Q_true', 'W_true',
-                        #     'efl_H',
-                        #
-                        #     'freq_pair_no', 'nu1', 'nu2',
-                        #
-                        #     'tb_nu1', 'tb_nu2',
-                        #     'tau_nu1', 'tau_nu2',
-                        #     'efl_tb_nu1', 'efl_tb_nu2',
-                        #     'efl_tau_nu1', 'efl_tau_nu2',
-                        #
-                        #     'Qr', 'Wr',
-                        #     'Qrs', 'Wrs',
-                        #     'efl_Qrss', 'efl_Wrss',
-                        # )]
-
                         data.append(
                             [THETA,
                              distr_no,
@@ -462,52 +364,6 @@ if __name__ == '__main__':
                              Stat(conv_Qrss), Stat(conv_Wrss),
                              ]
                         )
-
-                        # data.append(
-                        #     [THETA, distr_no, required_percentage, kernel,
-                        #      np.mean(conv_Q_mean), np.mean(conv_W_mean),
-                        #      np.mean(conv_Hs),
-                        #      np.max(conv_Q_mean), np.max(conv_W_mean),
-                        #      np.max(conv_Hs),
-                        #      np.min(conv_Q_mean), np.min(conv_W_mean),
-                        #      np.min(conv_Hs),
-                        #      np.var(conv_Q_mean), np.var(conv_W_mean),
-                        #      np.var(conv_Hs),
-                        #
-                        #      i, nu1, nu2,
-                        #      np.mean(conv_brts_mean[nu1]), np.mean(conv_brts_mean[nu2]),
-                        #      np.mean(conv_taus_mean[nu1]), np.mean(conv_taus_mean[nu2]),
-                        #      np.mean(solid_brts[nu1]), np.mean(solid_brts[nu2]),
-                        #      np.mean(solid_taus[nu1]), np.mean(solid_taus[nu2]),
-                        #      np.mean(conv_Qr_mean), np.mean(conv_Wr_mean),
-                        #      np.mean(conv_Qrs), np.mean(conv_Wrs),
-                        #      np.mean(conv_Qrss), np.mean(conv_Wrss),
-                        #
-                        #      np.max(conv_brts_mean[nu1]), np.max(conv_brts_mean[nu2]),
-                        #      np.max(conv_taus_mean[nu1]), np.max(conv_taus_mean[nu2]),
-                        #      np.max(solid_brts[nu1]), np.max(solid_brts[nu2]),
-                        #      np.max(solid_taus[nu1]), np.max(solid_taus[nu2]),
-                        #      np.max(conv_Qr_mean), np.max(conv_Wr_mean),
-                        #      np.max(conv_Qrs), np.max(conv_Wrs),
-                        #      np.max(conv_Qrss), np.max(conv_Wrss),
-                        #
-                        #      np.min(conv_brts_mean[nu1]), np.min(conv_brts_mean[nu2]),
-                        #      np.min(conv_taus_mean[nu1]), np.min(conv_taus_mean[nu2]),
-                        #      np.min(solid_brts[nu1]), np.min(solid_brts[nu2]),
-                        #      np.min(solid_taus[nu1]), np.min(solid_taus[nu2]),
-                        #      np.min(conv_Qr_mean), np.min(conv_Wr_mean),
-                        #      np.min(conv_Qrs), np.min(conv_Wrs),
-                        #      np.min(conv_Qrss), np.min(conv_Wrss),
-                        #
-                        #      np.var(conv_brts_mean[nu1]), np.var(conv_brts_mean[nu2]),
-                        #      np.var(conv_taus_mean[nu1]), np.var(conv_taus_mean[nu2]),
-                        #      np.var(solid_brts[nu1]), np.var(solid_brts[nu2]),
-                        #      np.var(solid_taus[nu1]), np.var(solid_taus[nu2]),
-                        #      np.var(conv_Qr_mean), np.var(conv_Wr_mean),
-                        #      np.var(conv_Qrs), np.var(conv_Wrs),
-                        #      np.var(conv_Qrss), np.var(conv_Wrss),
-                        #      ]
-                        # )
 
             with open('post_data.bin', 'wb') as dump:
                 dill.dump(np.array(data, dtype=object), dump, recurse=True)
