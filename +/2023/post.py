@@ -90,7 +90,8 @@ if __name__ == '__main__':
         frequency_pairs = [(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]
 
         # kernels = [int(a) for a in np.arange(6, res+1, 6)]
-        kernels = [6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 72, 90, 120, 150, 240, 288]
+        # kernels = [6, 18, 30, 42,  54, 60, 66,  72, 90, 120, 150, 240, 288]
+        kernels = [60]
         #########################################################################
 
         #########################################################################
@@ -163,7 +164,7 @@ if __name__ == '__main__':
             B[i] = T_avg_up[i] - T_avg_down[i] * R - math.as_tensor(surface_temperature + 273.15) * kappa
 
         #########################################################################
-        percentage = np.linspace(0.2, 0.7, 15, endpoint=True)[::-1]
+        percentage = np.linspace(0.2, 0.7, 20, endpoint=True)[::-1]
         #########################################################################
 
         distributions = []
@@ -199,11 +200,15 @@ if __name__ == '__main__':
                 K = 2 * np.power(alpha, 3) * (X * X * required_percentage) / (np.pi * xi)
                 print('K\t', K)
 
-                with open(os.path.join('HMAP',
-                                       distr['name'] + '_P' + str(
-                                           int(np.round(required_percentage * 100., decimals=0))) + '.map'),
-                          'rb') as file:
-                    hmap = dill.load(file)
+                # print(os.getcwd())
+                try:
+                    with open(os.path.join('HMAP',
+                                           distr['name'] + '_P' + str(
+                                               int(np.round(required_percentage * 100., decimals=0))) + '.map'),
+                              'rb') as file:
+                        hmap = dill.load(file)
+                except FileNotFoundError:
+                    continue
 
                 p = Plank3D(kilometers=(X, X, H), nodes=(res, res, d), clouds_bottom=cl_bottom)
 
@@ -365,9 +370,9 @@ if __name__ == '__main__':
                              ]
                         )
 
-            with open('post_data.bin', 'wb') as dump:
+            with open('post_data_theta0_kernel60.bin', 'wb') as dump:
                 dill.dump(np.array(data, dtype=object), dump, recurse=True)
 
     data = np.array(data, dtype=object)
-    with open('post_data.bin', 'wb') as dump:
+    with open('post_data_theta0_kernel60.bin', 'wb') as dump:
         dill.dump(data, dump, recurse=True)
