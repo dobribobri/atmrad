@@ -90,9 +90,8 @@ if __name__ == '__main__':
         frequency_pairs = [(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]
 
         # kernels = [int(a) for a in np.arange(6, res+1, 6)]
-        # kernels = [6, 18, 30, 42,  54, 60, 66,  72, 90, 120, 150, 240, 288]
         # kernels = [60]
-        kernels = list(range(6, 294, 6))
+        kernels = list(range(6, 96, 6)) + [120, 150, 240, 288]
         #########################################################################
 
         #########################################################################
@@ -371,9 +370,11 @@ if __name__ == '__main__':
                              ]
                         )
 
-            with open('post_data_theta0_distrL2.bin', 'wb') as dump:
+            with open('post_data_theta0_distrL2.bin.part', 'wb') as dump:
                 dill.dump(np.array(data, dtype=object), dump, recurse=True)
 
     data = np.array(data, dtype=object)
     with open('post_data_theta0_distrL2.bin', 'wb') as dump:
         dill.dump(data, dump, recurse=True)
+
+    # os.remove('post_data_theta0_distrL2.bin.part')
