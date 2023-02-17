@@ -40,6 +40,9 @@ if __name__ == '__main__':
         'alpha', 'Dm', 'dm', 'eta', 'beta', 'cl_bottom',    # параметры распределения
         'xi', 'K',    # ещё параметры (K зависит от %)
         'required_percentage',    # % покрытия облаками (cloud amount)
+
+        'Q_TRUE', 'W_TRUE',    # средние по всей расчетной сетке
+
         'kernel',    # ядро усреднения / размер эл-та разрешения радиометра в узлах
 
         'Q_true', 'W_true',    # статистика на истинные средние значения TWV и LWC
@@ -56,7 +59,16 @@ if __name__ == '__main__':
         # статистика в элементе разрешения - восстановление TWV и LWC
         'Qr', 'Wr',    # сначала решение обратной задачи, затем усреднение полученных 2D-карт TWV и LWC
         'Qrs', 'Wrs',    # сначала усреднение 2D-карт яркостной температуры, затем решение обратной задачи
-        'efl_Qrss', 'efl_Wrss',    # TWV и LWC, восстановленные по яркостной температуре эквивалентного сплошного слоя
+        'Qrss', 'Wrss',    # TWV и LWC, восстановленные по яркостной температуре эквивалентного сплошного слоя
+
+        # Дополнительно
+        'Delta_Qr', 'Delta_Wr',
+        'Delta_Qrs', 'Delta_Wrs',
+        'Delta_Qrss', 'Delta_Wrss',
+
+        'relerr_Qr', 'relerr_Wr',
+        'relerr_Qrs', 'relerr_Wrs',
+        'relerr_Qrss', 'relerr_Wrss',
     )]
 
     for THETA in THETAS:
@@ -90,8 +102,8 @@ if __name__ == '__main__':
         frequency_pairs = [(frequencies[0], frequencies[n]) for n in range(1, len(frequencies))]
 
         # kernels = [int(a) for a in np.arange(6, res+1, 6)]
-        # kernels = [60]
-        kernels = list(range(6, 96, 6)) + [120, 150, 240, 288]
+        kernels = [60]
+        # kernels = list(range(6, 96, 6)) + [120, 150, 240, 288]
         #########################################################################
 
         #########################################################################
@@ -352,6 +364,9 @@ if __name__ == '__main__':
                              alpha, Dm, dm, eta, beta, cl_bottom,
                              xi, K,
                              required_percentage,
+
+                             np.mean(Q), np.mean(W),
+
                              kernel,
 
                              Stat(conv_Q_mean), Stat(conv_W_mean),
@@ -367,14 +382,22 @@ if __name__ == '__main__':
                              Stat(conv_Qr_mean), Stat(conv_Wr_mean),
                              Stat(conv_Qrs), Stat(conv_Wrs),
                              Stat(conv_Qrss), Stat(conv_Wrss),
+
+                             Stat(conv_Q_mean - conv_Qr_mean), Stat(conv_W_mean - conv_Wr_mean),
+                             Stat(conv_Q_mean - conv_Qrs), Stat(conv_W_mean - conv_Wrs),
+                             Stat(conv_Q_mean - conv_Qrss), Stat(conv_W_mean - conv_Wrss),
+
+                             Stat((conv_Q_mean - conv_Qr_mean) / conv_Q_mean), Stat((conv_W_mean - conv_Wr_mean) / conv_W_mean),
+                             Stat((conv_Q_mean - conv_Qrs) / conv_Q_mean), Stat((conv_W_mean - conv_Wrs) / conv_W_mean),
+                             Stat((conv_Q_mean - conv_Qrss) / conv_Q_mean), Stat((conv_W_mean - conv_Wrss) / conv_W_mean),
                              ]
                         )
 
-            with open('post_data_theta0_distrL2.bin.part', 'wb') as dump:
+            with open('post_data_theta0_kernel60_distrL2.bin.part', 'wb') as dump:
                 dill.dump(np.array(data, dtype=object), dump, recurse=True)
 
     data = np.array(data, dtype=object)
-    with open('post_data_theta0_distrL2.bin', 'wb') as dump:
+    with open('post_data_theta0_kernel60_distrL2.bin', 'wb') as dump:
         dill.dump(data, dump, recurse=True)
 
     # os.remove('post_data_theta0_distrL2.bin.part')
