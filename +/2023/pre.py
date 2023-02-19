@@ -7,16 +7,16 @@ import dill
 import numpy as np
 # from collections import defaultdict
 
-from gpu.atmosphere import Atmosphere
-from gpu.surface import SmoothWaterSurface
+from cpu.atmosphere import Atmosphere
+from cpu.surface import SmoothWaterSurface
 from cpu.cloudiness import Cloudiness3D
-import gpu.satellite as satellite
+import cpu.satellite as satellite
 # from cpu.utils import map2d
 from cpu.atmosphere import Atmosphere as cpuAtm
 from cpu.atmosphere import avg
 from cpu.weight_funcs import krho
 from cpu.core.static.weight_funcs import kw
-import gpu.core.math as math
+import cpu.core.math as math
 
 
 if __name__ == '__main__':
