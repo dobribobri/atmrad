@@ -26,7 +26,7 @@ if __name__ == '__main__':
     #########################################################################
     # domain parameters
     H = 20.  # высота атмосферы
-    d = 100  # дискретизация по высоте
+    d = 1000  # дискретизация по высоте
     X = 10
     res = 10  # горизонтальная дискретизация
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     angle = THETA * np.pi / 180.  # зенитный угол наблюдения, по умолчанию: 0
     incline = 'left'
     # incline = 'right'
-    integration_method = 'trapz'
+    integration_method = 'boole'
 
     # atmosphere parameters
     T0 = 15.
