@@ -148,13 +148,13 @@ if __name__ == '__main__':
 
         hmap = np.zeros((res, res))
 
-        for i in range(0, res, 2):
-            for j in range(0, res, 2):
+        for i in range(0, res, 1):
+            for j in range(0, res, 1):
 
                 hmap[i, j] = power
-                hmap[i, j+1] = power
-                hmap[i+1, j] = power
-                hmap[i+1, j+1] = power
+                # hmap[i, j+1] = power
+                # hmap[i+1, j] = power
+                # hmap[i+1, j+1] = power
 
                 procentage = np.count_nonzero(hmap) / (res * res) * 100
 
@@ -233,9 +233,9 @@ if __name__ == '__main__':
                                  taus_mean[nu1], taus_mean[nu2],
                                  Qr_mean, Wr_mean, Qrs, Wrs])
 
-        with open('pre_data.bin', 'wb') as dump:
+        with open('pre_data_tcl0.bin', 'wb') as dump:
             dill.dump(np.array(data, dtype=object), dump, recurse=True)
 
     data = np.array(data, dtype=object)
-    with open('pre_data.bin', 'wb') as dump:
+    with open('pre_data_tcl0.bin', 'wb') as dump:
         dill.dump(data, dump, recurse=True)

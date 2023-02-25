@@ -46,6 +46,7 @@ if __name__ == '__main__':
         'kernel',    # ядро усреднения / размер эл-та разрешения радиометра в узлах
 
         'Q_true', 'W_true',    # статистика на истинные средние значения TWV и LWC
+        'H_true'    # статистика на истинную вертикальную протяженность (высота верхней кромки -1)
         'efl_H',    # статистика на высоту эквивалентного по водозапасу сплошного слоя облачности
 
         'freq_pair_no', 'nu1', 'nu2',    # порядковый номер пары частот, сами частоты
@@ -69,6 +70,10 @@ if __name__ == '__main__':
         'relerr_Qr', 'relerr_Wr',
         'relerr_Qrs', 'relerr_Wrs',
         'relerr_Qrss', 'relerr_Wrss',
+
+        'Delta_Qrs_Qr', 'Delta_Wrs_Wr',
+        'Delta_Qrs_Qrss', 'Delta_Wrs_Wrss',
+        'Delta_Qr_Qrss', 'Delta_Wr_Wrss',
     )]
 
     for THETA in THETAS:
@@ -130,6 +135,8 @@ if __name__ == '__main__':
         # base distribution parameters
         base_distributions = [
 
+            {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
+
             {'name': 'L3', 'alpha': 1.485, 'Dm': 4.020, 'dm': 0.03048, 'eta': 0.76, 'beta': -0.3, 'cl_bottom': 1.3716},
             {'name': 'T7', 'alpha': 1.35, 'Dm': 3.733, 'dm': 0.04572, 'eta': 1.2, 'beta': 0.0, 'cl_bottom': 1.24968},
             {'name': 'T6', 'alpha': 1.398, 'Dm': 3.376, 'dm': 0.03048, 'eta': 0.93, 'beta': -0.1, 'cl_bottom': 1.0668},
@@ -142,8 +149,6 @@ if __name__ == '__main__':
             {'name': 'T4', 'alpha': 2.703, 'Dm': 2.094, 'dm': 0.02286, 'eta': 0.8, 'beta': 0.0, 'cl_bottom': 0.9144},
             {'name': 'T2', 'alpha': 4.412, 'Dm': 1.126, 'dm': 0.01524, 'eta': 0.97, 'beta': 0.0, 'cl_bottom': 0.70104},
             {'name': 'T1', 'alpha': 9.07, 'Dm': 0.80485, 'dm': 0.01524, 'eta': 0.89, 'beta': 0.0, 'cl_bottom': 0.67056},
-
-            {'name': 'L2', 'alpha': 1.411, 'Dm': 4.026, 'dm': 0.02286, 'eta': 0.93, 'beta': 0.3, 'cl_bottom': 1.2192},
         ]
         seed = 42
 
@@ -161,7 +166,7 @@ if __name__ == '__main__':
         T_cosmic = 2.72548
         for i, freq_pair in enumerate(frequency_pairs):
             k_rho = [krho(sa, f) for f in freq_pair]
-            k_w = [kw(f, t=0.) for f in freq_pair]
+            k_w = [kw(f, t=-5) for f in freq_pair]
             m = math.as_tensor([k_rho, k_w])
             M[i] = math.transpose(m)
 
@@ -275,6 +280,8 @@ if __name__ == '__main__':
                                                                                   days, hours, minutes, seconds),
                           end='   ', flush=True)
 
+                    conv_H_mean = map2d.conv_averaging(hmap, kernel=kernel)
+
                     # свертка карты водозапаса с элементом разрешения выбранного размера
                     conv_W_mean = map2d.conv_averaging(W, kernel=kernel)
                     conv_Q_mean = map2d.conv_averaging(Q, kernel=kernel)
@@ -370,6 +377,7 @@ if __name__ == '__main__':
                              kernel,
 
                              Stat(conv_Q_mean), Stat(conv_W_mean),
+                             Stat(conv_H_mean),
                              Stat(conv_Hs),
 
                              i, nu1, nu2,
@@ -390,14 +398,18 @@ if __name__ == '__main__':
                              Stat((conv_Q_mean - conv_Qr_mean) / conv_Q_mean), Stat((conv_W_mean - conv_Wr_mean) / conv_W_mean),
                              Stat((conv_Q_mean - conv_Qrs) / conv_Q_mean), Stat((conv_W_mean - conv_Wrs) / conv_W_mean),
                              Stat((conv_Q_mean - conv_Qrss) / conv_Q_mean), Stat((conv_W_mean - conv_Wrss) / conv_W_mean),
+
+                             Stat(conv_Qr_mean - conv_Qrs), Stat(conv_Wr_mean - conv_Wrs),
+                             Stat(conv_Qrss - conv_Qrs), Stat(conv_Wrss - conv_Wrs),
+                             Stat(conv_Qrss - conv_Qr_mean), Stat(conv_Wrss - conv_Wr_mean),
                              ]
                         )
 
-            with open('post_data_theta0_kernel60_all.bin.part', 'wb') as dump:
+            with open('post_data_theta0_kernel60_tcl-5_all.bin.part', 'wb') as dump:
                 dill.dump(np.array(data, dtype=object), dump, recurse=True)
 
     data = np.array(data, dtype=object)
-    with open('post_data_theta0_kernel60_all.bin', 'wb') as dump:
+    with open('post_data_theta0_kernel60_tcl-5_all.bin', 'wb') as dump:
         dill.dump(data, dump, recurse=True)
 
-    os.remove('post_data_theta0_kernel60_all.bin.part')
+    os.remove('post_data_theta0_kernel60_tcl-5_all.bin.part')
