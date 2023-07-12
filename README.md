@@ -102,11 +102,10 @@ Code:
 ```python
 
 import numpy as np
-from cpu.atmosphere import Atmosphere
+from cpu.atmosphere import Atmosphere, avg
 from cpu.cloudiness import CloudinessColumn
 from cpu.surface import SmoothWaterSurface
 import cpu.satellite as satellite
-from cpu.atmosphere import avg
 from cpu.weight_funcs import krho
 from cpu.core.static.weight_funcs import kw
 
