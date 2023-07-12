@@ -33,7 +33,7 @@ from cpu.cloudiness import CloudinessColumn
 
 # A model of the Earth's atmosphere with standard altitude profiles of
 # thermodynamic temperature, pressure and air humidity
-# taken up to H = 20 km height with discretization of 100 nodes.
+# up to H = 20 km height with discretization of 500 nodes.
 # Clear sky, liquid water content (LWC) is zero
 atmosphere = Atmosphere.Standard(H=20., dh=20./500)
 # The integration method and other parameters can be additionally specified
@@ -82,6 +82,7 @@ plt.plot(frequencies, brt, ls='-.', lw=2,
 
 plt.grid(ls=':', alpha=0.5)
 plt.legend(loc='best', frameon=False)
+plt.tight_layout()
 plt.savefig('example1.png', dpi=300)
 plt.show()
 
@@ -91,7 +92,8 @@ plt.show()
 
 Result:
 
-![example1](https://github.com/dobribobri/atmrad/assets/31748247/e851e87c-d18f-493e-b7fc-42568e7183a7)
+![example1](https://github.com/dobribobri/atmrad/assets/31748247/c01b57ee-8e0c-40af-bccf-05fbebe65d42)
+
 
 
 <li>The inverse problem of total water vapor (TWV) and liquid water content (LWC) radiometric retrieval in a sub-satellite point. Common interface for this functionality is still under development.</li>
@@ -118,7 +120,7 @@ liquid_water_distribution = CloudinessColumn(20., 500, clouds_bottom=1.2).liquid
 atmosphere.liquid_water = liquid_water_distribution[0, 0, :]
 surface = SmoothWaterSurface()
 
-# We use further dual-frequency method for TWV and LWC retrieval from the known brightness temperatures
+# We use further the dual-frequency method for TWV and LWC retrieval from the known brightness temperatures
 frequency_pair = [22.2, 27.2]
 
 # Obtain brightness temperatures for the specified frequency pair
@@ -202,10 +204,10 @@ atmosphere = Atmosphere.Standard(H=20., dh=20./500)
 atmosphere.integration_method = 'boole'
 surface = SmoothWaterSurface()
 
-# Let the atmospheric cell has sizes 50x50x20 km.
-# We introduce a 3D computational grid of 300x300x500 nodes (Ox x Oy x Oz).
-# We fill the cell with cumuli distributed according to the "L2" case (see Plank, 1969).
-# For the "L2" case the Plank model parameters are as follows:
+# Let the atmospheric cell has sizes 50x50x20 km (Ox x Oy x Oz).
+# We introduce a 3D computational grid of 300x300x500 nodes.
+# Then fill the cell with cumuli distributed according to the "L2" case from (Plank, 1969), see tbl. 3
+# For this case, the Plank model parameters are as follows:
 alpha = 1.44    # a parameter depending on the time of day and various local climatic conditions (km^-1)
 Dm = 4.026      # maximum effective cloud diameter in a population (km)
 dm = 0.02286    # minimum effective cloud diameter (km)
@@ -213,11 +215,11 @@ eta = 0.93      # influences on cloud power (n.d.)
 beta = 0.3      # also influences on cloud power (n.d.)
 xi = -np.exp(-alpha * Dm) * (((alpha * Dm) ** 2) / 2 + alpha * Dm + 1) + \
     np.exp(-alpha * dm) * (((alpha * dm) ** 2) / 2 + alpha * dm + 1)
-required_percentage = 0.65      # sky cover percentage
-K = 2 * np.power(alpha, 3) * (50 * 50 * required_percentage) / (np.pi * xi)     # effective number density
+p = 0.65      # total sky cover ratio
+K = 2 * np.power(alpha, 3) * (50 * 50 * p) / (np.pi * xi)     # effective number density
 cloud_base = 1.2192      # cloud base altitude
 
-# Generate the corresponding 3D liquid water distribution
+# Generate the corresponding liquid water 3D-distribution
 liquid_water_distribution = Plank3D(kilometers=(50., 50., 20.),
                                     nodes=(300, 300, 500),
                                     clouds_bottom=cloud_base).liquid_water(
@@ -225,7 +227,7 @@ liquid_water_distribution = Plank3D(kilometers=(50., 50., 20.),
 )
 atmosphere.liquid_water = liquid_water_distribution
 
-# Obtain the brightness temperature map
+# Obtain the brightness temperature map at the specified frequency
 brt = satellite.brightness_temperature(frequency, atmosphere, surface, cosmic=True)
 
 # Display it
@@ -234,6 +236,7 @@ plt.imshow(brt.numpy())
 plt.xlabel('nodes (Ox direction)')
 plt.ylabel('nodes (Oy direction)')
 plt.colorbar(label=r'$T_b$, K')
+plt.tight_layout()
 plt.savefig('example3.png', dpi=300)
 plt.show()
 ```
@@ -242,7 +245,8 @@ plt.show()
 
 Result:
 
-![example3](https://github.com/dobribobri/atmrad/assets/31748247/496b0212-3646-4611-b0a6-d268aa46b274)
+![example3](https://github.com/dobribobri/atmrad/assets/31748247/ebcd15ca-f87c-4d10-b860-5b6010cdd98c)
+
 
 
 
