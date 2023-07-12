@@ -94,9 +94,7 @@ Result:
 ![example1](https://github.com/dobribobri/atmrad/assets/31748247/e851e87c-d18f-493e-b7fc-42568e7183a7)
 
 
-<li>The inverse problem of total water vapor (TWV) and liquid water content (LWC) radiometric retrieval in a sub-satellite point</li>
-
-Common interface for this functionality is still under development.
+<li>The inverse problem of total water vapor (TWV) and liquid water content (LWC) radiometric retrieval in a sub-satellite point. Common interface for this functionality is still under development.</li>
 &nbsp;
 
 Code:
