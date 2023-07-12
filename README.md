@@ -136,7 +136,8 @@ T_cosmic = 2.72548
 sa = Atmosphere.Standard(H=20., dh=20./500)
 # Water vapor specific attenuation coefficient (weighting function)
 k_rho = [krho(sa, nu) for nu in frequency_pair]
-# Liquid water specific attenuation coefficient (weighting function)
+# Liquid water specific attenuation coefficient (weighting function).
+# Cloud effective temperature is taken to be 0 deg. Celsium here
 k_w = [kw(nu, t=0.) for nu in frequency_pair]
 
 M = np.asarray([k_rho, k_w]).T
