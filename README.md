@@ -16,7 +16,7 @@ See also <a href='https://github.com/dobribobri/meteo-'>https://github.com/dobri
 #### Usage examples
 
 <ul>
-<li>Forward simulation of brightness temperature in a sub-satellite point</li>
+<li>Forward simulation of brightness temperatures in a sub-satellite point</li>
 &nbsp;
   
 Code:
@@ -178,5 +178,74 @@ Result:
 <pre>
   TWV is 1.55 g/cm2, 		LWC is 0.12 kg/m2
 </pre>
+
+
+<li>Forward simulation of brightness temperature (map) outgoing from an atmspheric cell filled with cumuli</li>
+&nbsp;
+
+Code:
+```python
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+# Using GPU acceleration
+from gpu.atmosphere import Atmosphere
+from gpu.surface import SmoothWaterSurface
+import gpu.satellite as satellite
+from cpu.cloudiness import Plank3D
+
+frequency = 36      # GHz
+
+# Standard atmosphere model with a smooth water surface as an underlying one
+atmosphere = Atmosphere.Standard(H=20., dh=20./500)
+atmosphere.integration_method = 'boole'
+surface = SmoothWaterSurface()
+
+# Let the atmospheric cell has sizes 50x50x20 km.
+# We introduce a 3D computational grid of 300x300x500 nodes (Ox x Oy x Oz).
+# We fill the cell with cumuli distributed according to the "L2" case (see Plank, 1969).
+# For the "L2" case the Plank model parameters are as follows:
+alpha = 1.44    # a parameter depending on the time of day and various local climatic conditions (km^-1)
+Dm = 4.026      # maximum effective cloud diameter in a population (km)
+dm = 0.02286    # minimum effective cloud diameter (km)
+eta = 0.93      # influences on cloud power (n.d.)
+beta = 0.3      # also influences on cloud power (n.d.)
+xi = -np.exp(-alpha * Dm) * (((alpha * Dm) ** 2) / 2 + alpha * Dm + 1) + \
+    np.exp(-alpha * dm) * (((alpha * dm) ** 2) / 2 + alpha * dm + 1)
+required_percentage = 0.65      # sky cover percentage
+K = 2 * np.power(alpha, 3) * (50 * 50 * required_percentage) / (np.pi * xi)     # effective number density
+cloud_base = 1.2192      # cloud base altitude
+
+# Generate the corresponding 3D liquid water distribution
+liquid_water_distribution = Plank3D(kilometers=(50., 50., 20.),
+                                    nodes=(300, 300, 500),
+                                    clouds_bottom=cloud_base).liquid_water(
+    alpha=alpha, Dm=Dm, dm=dm, eta=eta, beta=beta, K=K,
+)
+atmosphere.liquid_water = liquid_water_distribution
+
+# Obtain the brightness temperature map
+brt = satellite.brightness_temperature(frequency, atmosphere, surface, cosmic=True)
+
+# Display it
+plt.figure()
+plt.imshow(brt.numpy())
+plt.xlabel('nodes (Ox direction)')
+plt.ylabel('nodes (Oy direction)')
+plt.colorbar(label=r'$T_b$, K')
+plt.savefig('example3.png', dpi=300)
+plt.show()
+```
+
+&nbsp;
+
+Result:
+
+![example3](https://github.com/dobribobri/atmrad/assets/31748247/496b0212-3646-4611-b0a6-d268aa46b274)
+
+
+
+
 
 </ul>
