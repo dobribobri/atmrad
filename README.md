@@ -249,7 +249,20 @@ Result:
 
 
 
-
-
-
 </ul>
+
+
+#### References
+
+1. B.G. Kutuza, M.V. Danilychev and O.I. Yakovlev, Satellite Monitoring of the Earth: Microwave Radiometry of Atmosphere and Surface [in Russian]. Moscow, Russia: Lenand Publ., 2016, 336 p.
+2. V.G. Plank, The size distribution of cumulus clouds in representative Florida populations, J. Appl. Met., vol. 8, no. 1, pp. 46-67, 1969.
+3. Reference standard atmospheres, document Recommendation ITU-R P.835-6, International Telecommunication Union, 2017.
+4. Attenuation by atmospheric gases (Question ITU-R 201/3), document Recommendation ITU-R P.676-12, International Telecommunication Union, 2019.
+5. Attenuation due to clouds and fog, document Recommendation ITU-R P.840, International Telecommunication Union, 2019.
+6. D.H. Staelin, Measurements and interpretation of the microwave spectrum of the terrestrial atmosphere near 1‐centimeter wavelength, J. Geophys. Res., vol. 71, iss. 12, pp. 2875-2881, 1966.
+7. Ed R. Westwater, The accuracy of water vapor and cloud liquid determination by dual-frequency ground-based microwave radiometry, Radio Science, vol. 13, no. 4, pp. 677-685, 1978.
+8. D.P. Egorov and B.G. Kutuza, Atmospheric brightness temperature fluctuations in the resonance absorption band of water vapor 18-27.2 GHz, IEEE Trans. Geosci. Remote Sens., vol. 59, iss. 9, pp. 7627-7634, 2021.
+9. B.G. Kutuza and M.T. Smirnov, The influence of clouds on radio-thermal radiance of atmosphere - ocean surface system, Issled. Zemli Kosm. [in Russian], no. 3, pp. 76-83, 1980.
+10. S.P. Gagarin and B.G. Kutuza, Influence of sea roughness and atmospheric inhomogeneities on microwave radiation of the atmosphere -- ocean system, IEEE J. Ocean., vol. OE-8, no. 2, pp. 62-70, 1983.
+11. I.P. Mazin and S.M. Shmeter, Clouds, Structure and Formation Physics [in Russian]. Leningrad, USSR: Gidromteoizdat, 1983, 279 p.
+    
