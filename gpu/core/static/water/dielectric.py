@@ -56,7 +56,7 @@ def epsilon_complex(frequency: float, T: Union[float, TensorLike],
     # eps2 = 3.51
     eps2 = 3.52
     # fp = 20.09 - 142 * (theta - 1) + 294 * (theta - 1) * (theta - 1)
-    fp = 20.09 - 146 * (theta - 1) + 316 * (theta - 1) * (theta - 1)
+    fp = 20.2 - 146 * (theta - 1) + 316 * (theta - 1) * (theta - 1)
     # fs = 590 - 1500 * (theta - 1)
     fs = 39.8 * fp
     im = f * (eps0 - eps1) / (fp * (1 + (f / fp) * (f / fp))) + \

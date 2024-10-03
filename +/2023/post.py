@@ -30,6 +30,8 @@ class Stat:
 
 if __name__ == '__main__':
 
+    k = 0
+
     # THETAS = [0., 10., 20., 30., 40., 51.]
     THETAS = [0.]
 
@@ -74,6 +76,8 @@ if __name__ == '__main__':
         'Delta_Qrs_Qr', 'Delta_Wrs_Wr',
         'Delta_Qrs_Qrss', 'Delta_Wrs_Wrss',
         'Delta_Qr_Qrss', 'Delta_Wr_Wrss',
+
+        '_k_',
     )]
 
     for THETA in THETAS:
@@ -402,14 +406,18 @@ if __name__ == '__main__':
                              Stat(conv_Qr_mean - conv_Qrs), Stat(conv_Wr_mean - conv_Wrs),
                              Stat(conv_Qrss - conv_Qrs), Stat(conv_Wrss - conv_Wrs),
                              Stat(conv_Qrss - conv_Qr_mean), Stat(conv_Wrss - conv_Wr_mean),
+
+                             k,
                              ]
                         )
 
-            with open('post_data_theta0_kernel60_tcl-5_distrL2.bin.part', 'wb') as dump:
+                        k += 1
+
+            with open('post_data_theta0_kernel60_tcl-5_distrAll.bin.part', 'wb') as dump:
                 dill.dump(np.array(data, dtype=object), dump, recurse=True)
 
     data = np.array(data, dtype=object)
-    with open('post_data_theta0_kernel60_tcl-5_distrL2.bin', 'wb') as dump:
+    with open('post_data_theta0_kernel60_tcl-5_distrAll.bin', 'wb') as dump:
         dill.dump(data, dump, recurse=True)
 
-    os.remove('post_data_theta0_kernel60_tcl-5_distrL2.bin.part')
+    os.remove('post_data_theta0_kernel60_tcl-5_distrAll.bin.part')

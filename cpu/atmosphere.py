@@ -210,9 +210,9 @@ class Atmosphere:
         T11 = T0 - beta[0] * 11
         T32, T47 = 0., 0.
         for h in alt:
-            if h <= 11:
+            if h < 11:
                 temperature.append(T0 - beta[0] * h)
-            elif 11 < h <= 20:
+            elif 11 <= h <= 20:
                 temperature.append(T11)
             elif 20 < h <= 32:
                 T32 = T11 + (beta[1] * h - 20)

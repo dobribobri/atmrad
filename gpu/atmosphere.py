@@ -208,9 +208,9 @@ class Atmosphere:
         T11 = T0 - beta[0] * 11
         T32, T47 = 0., 0.
         for h in alt:
-            if h <= 11:
+            if h < 11:
                 temperature.append(T0 - beta[0] * h)
-            elif 11 < h <= 20:
+            elif 11 <= h <= 20:
                 temperature.append(T11)
             elif 20 < h <= 32:
                 T32 = T11 + (beta[1] * h - 20)
@@ -341,21 +341,21 @@ class Atmosphere:
             self.outer = atmosphere
 
         @atmospheric
-        def brightness_temperature(self: 'Atmosphere', frequency: float, __theta: float = None,
+        def brightness_temperature(self: 'Atmosphere', frequency: float, theta: float = None,
                                    background=True) -> Union[float, Tensor2D]:
             """
             Яркостная температура нисходящего излучения
 
             :param frequency: частота излучения в ГГц
-            :param __theta: угол наблюдения в радианах (deprecated)
+            :param theta: угол наблюдения в радианах
             :param background: учитывать космический фон - реликтовое излучение (да/нет)
             """
-            if __theta is None:
+            if theta is None:
                 _theta = self._theta
                 sec = 1.
             else:
                 _theta = 0.
-                sec = 1. / np.cos(__theta)
+                sec = 1. / np.cos(theta)
 
             g = sec * dB2np * self.attenuation.summary(frequency)
             T = self._T + 273.15
@@ -371,7 +371,7 @@ class Atmosphere:
                                                    boundaries=True)
             add = 0.
             if background:
-                add = self.T_cosmic * math.exp(-1 * self.opacity.summary(frequency, __theta))
+                add = self.T_cosmic * math.exp(-1 * self.opacity.summary(frequency, theta))
             return brt + add
 
     # noinspection PyTypeChecker

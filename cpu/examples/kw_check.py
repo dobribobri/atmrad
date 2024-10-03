@@ -10,7 +10,7 @@ if __name__ == '__main__':
     for f in np.round(np.arange(1., 300., 0.2), decimals=1):
         data[f] = {}
 
-        for t in np.round(np.arange(-10, 30, 0.2), decimals=1):
+        for t in np.round(np.arange(-30, 30, 0.2), decimals=1):
 
             print('\r{:.1f} GHz, \t\t\tT = {:.1f} C'.format(f, t), end='   ', flush=True)
 
